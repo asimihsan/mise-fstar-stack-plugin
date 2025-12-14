@@ -69,10 +69,11 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	if not path or path == "" then
 		error("PostInstall context missing install path for " .. PLUGIN.name)
 	end
-	-- Use ctx.runtimeVersion for the version being installed
-	local version = ctx.runtimeVersion
+	-- Use sdk_info.version for the version being installed
+	-- (ctx.runtimeVersion returns plugin version, not tool version)
+	local version = sdk_info.version
 	if not version or version == "" then
-		error("PostInstall context missing runtimeVersion")
+		error("PostInstall context missing sdk_info.version")
 	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
@@ -130,16 +131,6 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		return -- F* only installation
 	end
 
-	-- DEBUG: Print context info to find the right version field
-	print("[fstar-stack] ctx.runtimeVersion: " .. tostring(ctx.runtimeVersion))
-	print("[fstar-stack] sdk_info.version: " .. tostring(sdk_info.version))
-	print("[fstar-stack] sdk_info.name: " .. tostring(sdk_info.name))
-	print("[fstar-stack] sdk_info.path: " .. tostring(sdk_info.path))
-	-- Try to extract version from path (path ends with version)
-	local path_version = path:match("([^/]+)$")
-	print("[fstar-stack] path_version: " .. tostring(path_version))
-	print("[fstar-stack] Starting KaRaMeL build for version: " .. tostring(version))
-
 	-- Get stack configuration for KaRaMeL/OCaml versions
 	local stack_config = versions.get_stack_config(version)
 	if not stack_config then
@@ -150,13 +141,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local ocaml_config = stack_config.ocaml
 
 	-- Check prerequisites before doing any work
-	print("[fstar-stack] Checking prerequisites...")
 	local prereq_err = prerequisites.check_all_prerequisites(os_type)
 	if prereq_err then
-		print("[fstar-stack] Prerequisites check failed!")
 		error(prereq_err)
 	end
-	print("[fstar-stack] Prerequisites OK")
 
 	-- Get appropriate make command (gmake on macOS if available)
 	local make_cmd = prerequisites.get_make_command(os_type)
