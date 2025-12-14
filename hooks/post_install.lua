@@ -69,6 +69,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	if not path or path == "" then
 		error("PostInstall context missing install path for " .. PLUGIN.name)
 	end
+	local version = sdk_info.version
+	if not version or version == "" then
+		error("PostInstall context missing version for " .. PLUGIN.name)
+	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
 	if os_type == "windows" then
@@ -126,9 +130,9 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Get stack configuration for KaRaMeL/OCaml versions
-	local stack_config = versions.get_stack_config(ctx.version)
+	local stack_config = versions.get_stack_config(version)
 	if not stack_config then
-		error("Unknown stack version: " .. ctx.version)
+		error("Unknown stack version: " .. version)
 	end
 
 	local karamel_config = stack_config.karamel
