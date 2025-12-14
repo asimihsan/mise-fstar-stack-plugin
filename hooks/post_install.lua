@@ -28,6 +28,9 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	local sdk_info = ctx.sdkInfo[PLUGIN.name]
 	local path = sdk_info.path
+	if not path or path == "" then
+		error("PostInstall context missing install path for " .. PLUGIN.name)
+	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
 	if os_type == "windows" then

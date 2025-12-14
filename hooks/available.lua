@@ -7,7 +7,7 @@ function PLUGIN:Available(ctx) -- luacheck: ignore
 	local available = versions.get_available_versions()
 	local result = {}
 
-	for i, version in ipairs(available) do
+	for _, version in ipairs(available) do
 		local note = nil
 		if version == versions.LATEST_STACK then
 			note = "latest"

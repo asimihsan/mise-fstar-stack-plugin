@@ -27,7 +27,9 @@ end
 -- Extract SHA256 from GitHub digest field (format: "sha256:hexstring")
 local function extract_sha256(digest)
 	if digest and digest:match("^sha256:") then
-		return digest:gsub("^sha256:", "")
+		-- Use parentheses to ensure only the first return value (string) is returned
+		-- gsub returns (string, n_substitutions) but we only want the string
+		return (digest:gsub("^sha256:", ""))
 	end
 	return nil
 end
@@ -102,6 +104,11 @@ function PLUGIN:PreInstall(ctx) -- luacheck: ignore
 		error("Failed to fetch release info from GitHub: " .. tostring(err))
 	end
 
+	-- Guard against nil response (some http modules may return nil, nil)
+	if not resp then
+		error("Failed to fetch release info from GitHub: empty response")
+	end
+
 	-- Handle specific HTTP status codes
 	if resp.status_code == 404 then
 		error(
@@ -147,6 +154,18 @@ function PLUGIN:PreInstall(ctx) -- luacheck: ignore
 				sha256 = fstar_config.sha256[platform_key]
 			else
 				sha256 = extract_sha256(asset.digest)
+			end
+
+			-- Require SHA256 for integrity verification - don't proceed without it
+			if not sha256 then
+				error(
+					"Missing SHA256 checksum for "
+						.. platform_key
+						.. "\nThe versions manifest does not have a pinned checksum for this platform,\n"
+						.. "and the GitHub release asset does not provide a digest.\n"
+						.. "Please update lib/versions.lua with the correct SHA256 for: "
+						.. name
+				)
 			end
 
 			return {

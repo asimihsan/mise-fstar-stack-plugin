@@ -50,7 +50,7 @@ M.STACK_VERSIONS = {
 			},
 		},
 		-- Metadata
-		released = "2024-10-06",
+		released = "2025-10-06",
 		notes = "First stack release for F* 2025.10.06",
 	},
 }
@@ -58,16 +58,52 @@ M.STACK_VERSIONS = {
 -- Latest stable stack version
 M.LATEST_STACK = "2025.10.06-stack.1"
 
+-- Parse stack version into comparable components
+-- Format: YYYY.MM.DD-stack.N
+local function parse_stack_version(version)
+	local year, month, day, stack_num = version:match("^(%d+)%.(%d+)%.(%d+)%-stack%.(%d+)$")
+	if year then
+		return {
+			year = tonumber(year),
+			month = tonumber(month),
+			day = tonumber(day),
+			stack_num = tonumber(stack_num),
+		}
+	end
+	return nil
+end
+
+-- Compare two stack versions numerically (handles double-digit stack numbers)
+local function compare_versions(a, b)
+	local pa = parse_stack_version(a)
+	local pb = parse_stack_version(b)
+
+	-- If either fails to parse, fall back to string comparison
+	if not pa or not pb then
+		return a > b
+	end
+
+	-- Compare year, month, day, then stack number (descending order)
+	if pa.year ~= pb.year then
+		return pa.year > pb.year
+	end
+	if pa.month ~= pb.month then
+		return pa.month > pb.month
+	end
+	if pa.day ~= pb.day then
+		return pa.day > pb.day
+	end
+	return pa.stack_num > pb.stack_num
+end
+
 -- Get all available stack versions (sorted descending)
 function M.get_available_versions()
 	local versions = {}
 	for version, _ in pairs(M.STACK_VERSIONS) do
 		table.insert(versions, version)
 	end
-	-- Sort descending
-	table.sort(versions, function(a, b)
-		return a > b
-	end)
+	-- Sort descending using numeric comparison
+	table.sort(versions, compare_versions)
 	return versions
 end
 
