@@ -6,61 +6,61 @@ local file = require("file")
 
 -- Shell-escape a path for safe use in os.execute()
 local function quote(path)
-    return "'" .. path:gsub("'", "'\\''") .. "'"
+	return "'" .. path:gsub("'", "'\\''") .. "'"
 end
 
 -- Check if os.execute succeeded
 local function exec_succeeded(result)
-    return result == true or result == 0
+	return result == true or result == 0
 end
 
 function PLUGIN:PostInstall(ctx) -- luacheck: ignore
-    local sdk_info = ctx.sdkInfo[PLUGIN.name]
-    local path = sdk_info.path
-    local os_type = RUNTIME.osType -- luacheck: ignore
+	local sdk_info = ctx.sdkInfo[PLUGIN.name]
+	local path = sdk_info.path
+	local os_type = RUNTIME.osType -- luacheck: ignore
 
-    if os_type == "windows" then
-        error("Windows is not yet supported")
-    end
+	if os_type == "windows" then
+		error("Windows is not yet supported")
+	end
 
-    -- Mise extracts tarball contents directly to install path
-    -- (strips the top-level fstar/ directory)
-    -- Structure: {path}/bin/fstar.exe, {path}/lib/fstar/ulib/...
+	-- Mise extracts tarball contents directly to install path
+	-- (strips the top-level fstar/ directory)
+	-- Structure: {path}/bin/fstar.exe, {path}/lib/fstar/ulib/...
 
-    -- Paths for verification
-    local bin_dir = file.join_path(path, "bin")
-    local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
-    local fstar_exe = file.join_path(bin_dir, "fstar.exe")
+	-- Paths for verification
+	local bin_dir = file.join_path(path, "bin")
+	local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
+	local fstar_exe = file.join_path(bin_dir, "fstar.exe")
 
-    -- On macOS: Remove quarantine attributes
-    if os_type == "darwin" then
-        os.execute("xattr -rd com.apple.quarantine " .. quote(bin_dir) .. " 2>/dev/null")
-        os.execute("xattr -rd com.apple.quarantine " .. quote(path) .. "/lib/fstar/z3-*/bin 2>/dev/null")
-    end
+	-- On macOS: Remove quarantine attributes
+	if os_type == "darwin" then
+		os.execute("xattr -rd com.apple.quarantine " .. quote(bin_dir) .. " 2>/dev/null")
+		os.execute("xattr -rd com.apple.quarantine " .. quote(path) .. "/lib/fstar/z3-*/bin 2>/dev/null")
+	end
 
-    -- Set executable permissions
-    os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
-    os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+	-- Set executable permissions
+	os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
+	os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
 
-    -- Verify installation
-    if not file.exists(ulib_dir) then
-        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
-    end
+	-- Verify installation
+	if not file.exists(ulib_dir) then
+		error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
+	end
 
-    if not file.exists(fstar_exe) then
-        error("F* installation incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
-    end
+	if not file.exists(fstar_exe) then
+		error("F* installation incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
+	end
 
-    local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
-    if not exec_succeeded(test_result) then
-        error("F* binary verification failed")
-    end
+	local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
+	if not exec_succeeded(test_result) then
+		error("F* binary verification failed")
+	end
 
-    -- TODO (Phase 2): Add KaRaMeL build here
-    -- 1. Check prerequisites (opam, gmake, git, pkg-config, gmp)
-    -- 2. Create isolated opam root at {path}/opam/
-    -- 3. opam init && opam switch create
-    -- 4. Install opam packages
-    -- 5. Clone KaRaMeL at pinned commit to {path}/karamel/
-    -- 6. Build KaRaMeL with FSTAR_EXE pointing to installed F*
+	-- TODO (Phase 2): Add KaRaMeL build here
+	-- 1. Check prerequisites (opam, gmake, git, pkg-config, gmp)
+	-- 2. Create isolated opam root at {path}/opam/
+	-- 3. opam init && opam switch create
+	-- 4. Install opam packages
+	-- 5. Clone KaRaMeL at pinned commit to {path}/karamel/
+	-- 6. Build KaRaMeL with FSTAR_EXE pointing to installed F*
 end
