@@ -23,34 +23,28 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
         error("Windows is not yet supported")
     end
 
-    -- F* tarball extracts to a "fstar" subdirectory
-    -- Structure after mise extracts: {path}/fstar/bin/fstar.exe
-    local fstar_dir = file.join_path(path, "fstar")
-
-    -- Debug: List what's actually in the install directory
-    local debug_cmd = "ls -la " .. quote(path) .. " 2>&1"
-    local debug_result = io.popen(debug_cmd)
-    local debug_output = debug_result:read("*all")
-    debug_result:close()
+    -- Mise extracts tarball contents directly to install path
+    -- (strips the top-level fstar/ directory)
+    -- Structure: {path}/bin/fstar.exe, {path}/lib/fstar/ulib/...
 
     -- Paths for verification
-    local bin_dir = file.join_path(fstar_dir, "bin")
-    local ulib_dir = file.join_path(fstar_dir, "lib", "fstar", "ulib")
+    local bin_dir = file.join_path(path, "bin")
+    local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
     local fstar_exe = file.join_path(bin_dir, "fstar.exe")
 
     -- On macOS: Remove quarantine attributes
     if os_type == "darwin" then
         os.execute("xattr -rd com.apple.quarantine " .. quote(bin_dir) .. " 2>/dev/null")
-        os.execute("xattr -rd com.apple.quarantine " .. quote(fstar_dir) .. "/lib/fstar/z3-*/bin 2>/dev/null")
+        os.execute("xattr -rd com.apple.quarantine " .. quote(path) .. "/lib/fstar/z3-*/bin 2>/dev/null")
     end
 
     -- Set executable permissions
     os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
-    os.execute("chmod +x " .. quote(fstar_dir) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+    os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
 
     -- Verify installation
     if not file.exists(ulib_dir) then
-        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir .. "\nDirectory contents:\n" .. debug_output)
+        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
     end
 
     if not file.exists(fstar_exe) then
@@ -67,6 +61,6 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
     -- 2. Create isolated opam root at {path}/opam/
     -- 3. opam init && opam switch create
     -- 4. Install opam packages
-    -- 5. Clone KaRaMeL at pinned commit
+    -- 5. Clone KaRaMeL at pinned commit to {path}/karamel/
     -- 6. Build KaRaMeL with FSTAR_EXE pointing to installed F*
 end

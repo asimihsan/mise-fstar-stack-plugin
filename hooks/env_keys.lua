@@ -12,8 +12,8 @@ local Z3_VERSIONS = {
 }
 
 -- Find the first available Z3 version in the installation
-local function find_z3_bin(fstar_path)
-    local fstar_lib = file.join_path(fstar_path, "lib", "fstar")
+local function find_z3_bin(main_path)
+    local fstar_lib = file.join_path(main_path, "lib", "fstar")
 
     for _, version in ipairs(Z3_VERSIONS) do
         local z3_bin = file.join_path(fstar_lib, "z3-" .. version, "bin")
@@ -29,24 +29,24 @@ end
 function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
     local main_path = ctx.path
 
-    -- F* is installed under {main_path}/fstar/
-    local fstar_path = file.join_path(main_path, "fstar")
+    -- Mise extracts F* directly to main_path (no fstar/ subdirectory)
+    -- Structure: {main_path}/bin/fstar.exe, {main_path}/lib/fstar/...
 
     local env_vars = {
-        -- FSTAR_HOME points to the F* installation
+        -- FSTAR_HOME points to the installation root
         {
             key = "FSTAR_HOME",
-            value = fstar_path,
+            value = main_path,
         },
         -- Add F* binary directory to PATH
         {
             key = "PATH",
-            value = file.join_path(fstar_path, "bin"),
+            value = file.join_path(main_path, "bin"),
         },
     }
 
     -- Add bundled Z3 to PATH
-    local z3_bin = find_z3_bin(fstar_path)
+    local z3_bin = find_z3_bin(main_path)
     table.insert(env_vars, {
         key = "PATH",
         value = z3_bin,
