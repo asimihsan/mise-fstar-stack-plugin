@@ -45,7 +45,7 @@ M.STACK_VERSIONS = {
 				"ppx_deriving_yojson=3.7.0",
 				"ctypes=0.22.0",
 				"ctypes-foreign=0.22.0",
-				"uucp=15.1.0",
+				"uucp=15.0.0",
 				"sedlex=3.2",
 			},
 		},
