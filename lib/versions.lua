@@ -26,13 +26,13 @@ M.STACK_VERSIONS = {
 		},
 		-- OCaml toolchain (for Phase 2)
 		ocaml = {
-			version = "5.2.1",
+			version = "5.4.0",  -- Updated from 5.2.1 for better macOS Tahoe support
 			-- Pin opam repo for reproducibility
 			opam_repo_commit = nil, -- TODO: determine working commit
-			-- Package versions compatible with OCaml 5.2.1
+			-- Package versions compatible with OCaml 5.4.0
 			-- Use 'opam show PKG.VERSION --field=depends' to verify compatibility
 			packages = {
-				"batteries=3.8.0",       -- requires ocaml >= 4.05 & < 5.3
+				"batteries=3.10.0",      -- requires ocaml >= 4.05 & < 5.5
 				"zarith=1.14",           -- requires ocaml >= 4.04
 				"stdint=0.7.2",
 				"yojson=2.2.2",          -- latest compatible
