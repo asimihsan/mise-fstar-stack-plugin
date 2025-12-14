@@ -27,6 +27,12 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
     -- Structure after mise extracts: {path}/fstar/bin/fstar.exe
     local fstar_dir = file.join_path(path, "fstar")
 
+    -- Debug: List what's actually in the install directory
+    local debug_cmd = "ls -la " .. quote(path) .. " 2>&1"
+    local debug_result = io.popen(debug_cmd)
+    local debug_output = debug_result:read("*all")
+    debug_result:close()
+
     -- Paths for verification
     local bin_dir = file.join_path(fstar_dir, "bin")
     local ulib_dir = file.join_path(fstar_dir, "lib", "fstar", "ulib")
@@ -44,7 +50,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
     -- Verify installation
     if not file.exists(ulib_dir) then
-        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
+        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir .. "\nDirectory contents:\n" .. debug_output)
     end
 
     if not file.exists(fstar_exe) then
