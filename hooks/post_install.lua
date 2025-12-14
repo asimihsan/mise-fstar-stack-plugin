@@ -23,26 +23,9 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
         error("Windows is not yet supported")
     end
 
-    -- Create subdirectory for F* (to separate from future KaRaMeL)
-    local fstar_dir = file.join_path(path, "fstar")
-    os.execute("mkdir -p " .. quote(fstar_dir))
-
-    -- F* tarball extracts to a "fstar" subdirectory within the extraction point
+    -- F* tarball extracts to a "fstar" subdirectory
     -- Structure after mise extracts: {path}/fstar/bin/fstar.exe
-    -- We want: {path}/fstar/bin/fstar.exe (keep it there for organization)
-
-    -- The tarball creates {path}/fstar/... so the structure is already correct
-    -- Just need to verify it exists
-    local extracted_fstar = file.join_path(path, "fstar")
-
-    if not file.exists(extracted_fstar) then
-        -- Maybe it extracted differently, try to find and move
-        local move_result = os.execute("ls " .. quote(path) .. "/*/bin/fstar.exe 2>/dev/null")
-        if exec_succeeded(move_result) then
-            -- Find the actual directory and move contents
-            os.execute("mv " .. quote(path) .. "/fstar-*/* " .. quote(fstar_dir) .. "/ 2>/dev/null")
-        end
-    end
+    local fstar_dir = file.join_path(path, "fstar")
 
     -- Paths for verification
     local bin_dir = file.join_path(fstar_dir, "bin")
@@ -61,11 +44,11 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
     -- Verify installation
     if not file.exists(ulib_dir) then
-        error("F* installation incomplete: lib/fstar/ulib not found")
+        error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
     end
 
     if not file.exists(fstar_exe) then
-        error("F* installation incomplete: bin/fstar.exe not found")
+        error("F* installation incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
     end
 
     local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
