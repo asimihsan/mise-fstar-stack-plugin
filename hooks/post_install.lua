@@ -130,7 +130,14 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		return -- F* only installation
 	end
 
-	-- DEBUG: Print that we reached Phase 2
+	-- DEBUG: Print context info to find the right version field
+	print("[fstar-stack] ctx.runtimeVersion: " .. tostring(ctx.runtimeVersion))
+	print("[fstar-stack] sdk_info.version: " .. tostring(sdk_info.version))
+	print("[fstar-stack] sdk_info.name: " .. tostring(sdk_info.name))
+	print("[fstar-stack] sdk_info.path: " .. tostring(sdk_info.path))
+	-- Try to extract version from path (path ends with version)
+	local path_version = path:match("([^/]+)$")
+	print("[fstar-stack] path_version: " .. tostring(path_version))
 	print("[fstar-stack] Starting KaRaMeL build for version: " .. tostring(version))
 
 	-- Get stack configuration for KaRaMeL/OCaml versions
