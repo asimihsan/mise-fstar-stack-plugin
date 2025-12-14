@@ -15,7 +15,7 @@ M.STACK_VERSIONS = {
 			sha256 = {
 				["darwin_arm64"] = "e922281c189240d9e6a16684d5d3b9f3343d345ba2c6cd55ce9b68025c823373",
 				["darwin_amd64"] = nil, -- Not available for this release
-				["linux_amd64"] = nil, -- TODO: Get actual checksum
+				["linux_amd64"] = "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
 				["linux_arm64"] = nil, -- Not available for this release
 			},
 		},

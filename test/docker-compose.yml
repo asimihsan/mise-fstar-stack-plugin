@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  fstar-stack-test:
+    build:
+      context: ../../proven-pool
+      dockerfile: ../mise-fstar-stack-plugin/test/Dockerfile
+      args:
+        GH_TOKEN: ${GH_TOKEN:-}
+    image: fstar-stack-test:latest
