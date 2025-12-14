@@ -52,11 +52,13 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 		value = z3_bin,
 	})
 
-	-- KaRaMeL paths (if installed)
+	-- KaRaMeL paths (only if build completed successfully)
 	local karamel_path = file.join_path(main_path, "karamel")
 	local opam_root = file.join_path(main_path, "opam")
+	local krml_exe = file.join_path(karamel_path, "_build", "default", "src", "Karamel.exe")
 
-	if file.exists(karamel_path) then
+	-- Gate on binary existing, not just directory (in case build failed midway)
+	if file.exists(krml_exe) then
 		table.insert(env_vars, {
 			key = "KRML_HOME",
 			value = karamel_path,
@@ -78,6 +80,11 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 		table.insert(env_vars, {
 			key = "OPAMROOT",
 			value = opam_root,
+		})
+		-- Set default switch so users don't get "no switch set" errors
+		table.insert(env_vars, {
+			key = "OPAMSWITCH",
+			value = "default",
 		})
 	end
 

@@ -20,7 +20,9 @@ end
 local function run_command(cmd, description)
 	-- Create temp file for output capture
 	local output_file = os.tmpname()
-	local full_cmd = cmd .. " > " .. quote(output_file) .. " 2>&1"
+	-- Wrap entire command in parentheses so redirect captures all output
+	-- (including compound commands like "cd x && git y")
+	local full_cmd = "(" .. cmd .. ") > " .. quote(output_file) .. " 2>&1"
 	local result = os.execute(full_cmd)
 
 	if exec_succeeded(result) then
@@ -185,6 +187,15 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Checkout pinned commit
 	ok, err = run_command("cd " .. quote(karamel_dir) .. " && git checkout " .. karamel_commit, "git checkout commit")
+	if not ok then
+		error(err)
+	end
+
+	-- Update submodules for the checked-out commit
+	ok, err = run_command(
+		"cd " .. quote(karamel_dir) .. " && git submodule update --init --recursive",
+		"git submodule update"
+	)
 	if not ok then
 		error(err)
 	end

@@ -22,12 +22,13 @@ M.PREREQUISITES = {
 		},
 	},
 	{
-		name = "make",
+		name = "gmake",
+		-- On macOS, GNU make (gmake) is required - BSD make won't work
+		-- On Linux, make is typically GNU make
 		command = "gmake --version 2>/dev/null || make --version",
-		-- On macOS, we prefer gmake (GNU make) over BSD make
-		darwin_prefer = "gmake",
+		darwin_check = "gmake --version", -- macOS requires gmake specifically
 		hint = {
-			darwin = "brew install make  # provides gmake",
+			darwin = "brew install make  # provides gmake (GNU make required)",
 			linux = "apt install make  # or your package manager",
 		},
 	},
@@ -65,7 +66,14 @@ end
 -- Check if a single prerequisite is available
 -- Returns true if available, false and error message if not
 function M.check_prerequisite(prereq, os_type)
-	local result = os.execute(prereq.command .. " > /dev/null 2>&1")
+	-- Use platform-specific check if available (e.g., macOS requires gmake specifically)
+	local check_cmd = prereq.command
+	if os_type == "darwin" and prereq.darwin_check then
+		check_cmd = prereq.darwin_check
+	end
+
+	-- Wrap command in parentheses to capture all output from compound commands
+	local result = os.execute("(" .. check_cmd .. ") > /dev/null 2>&1")
 	if exec_succeeded(result) then
 		return true, nil
 	end
