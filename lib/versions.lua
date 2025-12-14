@@ -13,9 +13,9 @@ M.STACK_VERSIONS = {
 			tag = "v2025.10.06",
 			-- SHA256 checksums per platform (from GitHub release)
 			sha256 = {
-				["darwin_arm64"] = "e14e4fd8e04c5b5b96f6f8e5d07ab600da28d9f8d52b3e6f0d2adf8c3d2a4b1c",
+				["darwin_arm64"] = "e922281c189240d9e6a16684d5d3b9f3343d345ba2c6cd55ce9b68025c823373",
 				["darwin_amd64"] = nil, -- Not available for this release
-				["linux_amd64"] = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+				["linux_amd64"] = nil, -- TODO: Get actual checksum
 				["linux_arm64"] = nil, -- Not available for this release
 			},
 		},

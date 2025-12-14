@@ -130,20 +130,26 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		return -- F* only installation
 	end
 
+	-- DEBUG: Print that we reached Phase 2
+	print("[fstar-stack] Starting KaRaMeL build for version: " .. tostring(version))
+
 	-- Get stack configuration for KaRaMeL/OCaml versions
 	local stack_config = versions.get_stack_config(version)
 	if not stack_config then
-		error("Unknown stack version: " .. version)
+		error("Unknown stack version: " .. tostring(version))
 	end
 
 	local karamel_config = stack_config.karamel
 	local ocaml_config = stack_config.ocaml
 
 	-- Check prerequisites before doing any work
+	print("[fstar-stack] Checking prerequisites...")
 	local prereq_err = prerequisites.check_all_prerequisites(os_type)
 	if prereq_err then
+		print("[fstar-stack] Prerequisites check failed!")
 		error(prereq_err)
 	end
+	print("[fstar-stack] Prerequisites OK")
 
 	-- Get appropriate make command (gmake on macOS if available)
 	local make_cmd = prerequisites.get_make_command(os_type)
