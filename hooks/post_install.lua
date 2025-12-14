@@ -69,9 +69,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	if not path or path == "" then
 		error("PostInstall context missing install path for " .. PLUGIN.name)
 	end
-	local version = sdk_info.version
+	-- Use ctx.runtimeVersion for the version being installed
+	local version = ctx.runtimeVersion
 	if not version or version == "" then
-		error("PostInstall context missing version for " .. PLUGIN.name)
+		error("PostInstall context missing runtimeVersion")
 	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
