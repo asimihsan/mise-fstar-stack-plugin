@@ -32,10 +32,13 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
 	local fstar_exe = file.join_path(bin_dir, "fstar.exe")
 
-	-- On macOS: Remove quarantine attributes
+	-- On macOS: Remove quarantine attributes (can be skipped with env var)
 	if os_type == "darwin" then
-		os.execute("xattr -rd com.apple.quarantine " .. quote(bin_dir) .. " 2>/dev/null")
-		os.execute("xattr -rd com.apple.quarantine " .. quote(path) .. "/lib/fstar/z3-*/bin 2>/dev/null")
+		local skip_unquarantine = os.getenv("MISE_FSTAR_STACK_SKIP_UNQUARANTINE")
+		if skip_unquarantine ~= "1" then
+			os.execute("xattr -rd com.apple.quarantine " .. quote(bin_dir) .. " 2>/dev/null")
+			os.execute("xattr -rd com.apple.quarantine " .. quote(path) .. "/lib/fstar/z3-*/bin 2>/dev/null")
+		end
 	end
 
 	-- Set executable permissions
