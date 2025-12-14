@@ -52,9 +52,10 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 		value = z3_bin,
 	})
 
-	-- TODO (Phase 2): Add KaRaMeL paths
-	-- KaRaMeL will be installed under {main_path}/karamel/
+	-- KaRaMeL paths (if installed)
 	local karamel_path = file.join_path(main_path, "karamel")
+	local opam_root = file.join_path(main_path, "opam")
+
 	if file.exists(karamel_path) then
 		table.insert(env_vars, {
 			key = "KRML_HOME",
@@ -64,6 +65,19 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 		table.insert(env_vars, {
 			key = "PATH",
 			value = file.join_path(karamel_path, "_build", "default", "src"),
+		})
+		-- krmllib headers and C files
+		table.insert(env_vars, {
+			key = "KRML_INCLUDE",
+			value = file.join_path(karamel_path, "krmllib", "dist", "minimal"),
+		})
+	end
+
+	-- Set up opam root for KaRaMeL's OCaml dependencies
+	if file.exists(opam_root) then
+		table.insert(env_vars, {
+			key = "OPAMROOT",
+			value = opam_root,
 		})
 	end
 
