@@ -29,24 +29,26 @@ M.STACK_VERSIONS = {
 			version = "5.2.1",
 			-- Pin opam repo for reproducibility
 			opam_repo_commit = nil, -- TODO: determine working commit
+			-- Package versions compatible with OCaml 5.2.1
+			-- Use 'opam show PKG.VERSION --field=depends' to verify compatibility
 			packages = {
-				"batteries=3.6.0",
-				"zarith=1.13",
+				"batteries=3.8.0",       -- requires ocaml >= 4.05 & < 5.3
+				"zarith=1.14",           -- requires ocaml >= 4.04
 				"stdint=0.7.2",
-				"yojson=2.1.2",
-				"fileutils=0.6.4",
-				"menhir=20231231",
+				"yojson=2.2.2",          -- latest compatible
+				"fileutils=0.6.6",       -- latest
+				"menhir=20240715",       -- latest compatible with 5.2
 				"pprint=20230830",
 				"process=0.2.1",
 				"fix=20230505",
 				"wasm=2.0.1",
 				"visitors=20210608",
-				"ppx_deriving=5.2.1",
-				"ppx_deriving_yojson=3.7.0",
-				"ctypes=0.22.0",
-				"ctypes-foreign=0.22.0",
-				"uucp=15.0.0",
-				"sedlex=3.2",
+				"ppx_deriving=6.0.3",    -- compatible with 5.2
+				"ppx_deriving_yojson=3.9.0", -- compatible with 5.2
+				"ctypes=0.23.0",         -- latest
+				"ctypes-foreign=0.23.0",
+				"uucp=16.0.0",           -- compatible with 5.2
+				"sedlex=3.3",            -- latest
 			},
 		},
 		-- Metadata
