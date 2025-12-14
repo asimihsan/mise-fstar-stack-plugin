@@ -1,6 +1,6 @@
 -- hooks/post_install.lua
 -- Performs setup after fstar-stack installation
--- For the minimal spike, this only installs F* (no KaRaMeL yet)
+-- Installs F* binary; KaRaMeL build will be added in Phase 2
 
 local file = require("file")
 
@@ -9,18 +9,33 @@ local function quote(path)
 	return "'" .. path:gsub("'", "'\\''") .. "'"
 end
 
--- Check if os.execute succeeded
+-- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values)
 local function exec_succeeded(result)
 	return result == true or result == 0
 end
 
 function PLUGIN:PostInstall(ctx) -- luacheck: ignore
+	-- Defensive checks for context structure
+	if not ctx then
+		error("PostInstall received nil context")
+	end
+	if not ctx.sdkInfo then
+		error("PostInstall context missing sdkInfo")
+	end
+	if not ctx.sdkInfo[PLUGIN.name] then
+		error("PostInstall context missing sdkInfo for " .. PLUGIN.name)
+	end
+
 	local sdk_info = ctx.sdkInfo[PLUGIN.name]
 	local path = sdk_info.path
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
 	if os_type == "windows" then
-		error("Windows is not yet supported")
+		error(
+			"Windows is not yet supported.\n"
+				.. "The plugin uses Unix shell commands (chmod, xattr).\n"
+				.. "Please install F* manually from: https://github.com/FStarLang/FStar/releases"
+		)
 	end
 
 	-- Mise extracts tarball contents directly to install path

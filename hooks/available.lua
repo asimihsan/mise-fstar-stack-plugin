@@ -1,16 +1,23 @@
 -- hooks/available.lua
--- Returns available stack versions
--- For the minimal spike, this returns hardcoded versions
+-- Returns available stack versions from the versions manifest
+
+local versions = require("lib.versions")
 
 function PLUGIN:Available(ctx) -- luacheck: ignore
-	-- Hardcoded stack versions for minimal spike
-	-- Format: YYYY.MM.DD-stack.N where the date is the F* release date
-	local result = {
-		{
-			version = "2025.10.06-stack.1",
-			note = "latest",
-		},
-	}
+	local available = versions.get_available_versions()
+	local result = {}
+
+	for i, version in ipairs(available) do
+		local note = nil
+		if version == versions.LATEST_STACK then
+			note = "latest"
+		end
+
+		table.insert(result, {
+			version = version,
+			note = note,
+		})
+	end
 
 	-- Return array directly, not wrapped in { versions = ... }
 	return result
