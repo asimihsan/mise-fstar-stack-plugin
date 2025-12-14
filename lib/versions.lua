@@ -30,25 +30,25 @@ M.STACK_VERSIONS = {
 			-- Pin opam repo for reproducibility
 			opam_repo_commit = nil, -- TODO: determine working commit
 			-- Package versions compatible with OCaml 5.4.0
-			-- Use 'opam show PKG.VERSION --field=depends' to verify compatibility
+			-- Updated to latest versions for macOS Tahoe compatibility
 			packages = {
 				"batteries=3.10.0",      -- requires ocaml >= 4.05 & < 5.5
 				"zarith=1.14",           -- requires ocaml >= 4.04
 				"stdint=0.7.2",
-				"yojson=2.2.2",          -- latest compatible
-				"fileutils=0.6.6",       -- latest
-				"menhir=20240715",       -- latest compatible with 5.2
+				"yojson=2.2.2",
+				"fileutils=0.6.6",
+				"menhir=20250912",       -- latest
 				"pprint=20230830",
 				"process=0.2.1",
-				"fix=20230505",
-				"wasm=2.0.1",
-				"visitors=20210608",
-				"ppx_deriving=6.0.3",    -- compatible with 5.2
-				"ppx_deriving_yojson=3.9.0", -- compatible with 5.2
-				"ctypes=0.23.0",         -- latest
-				"ctypes-foreign=0.23.0",
-				"uucp=16.0.0",           -- compatible with 5.2
-				"sedlex=3.3",            -- latest
+				"fix=20250919",          -- latest
+				"wasm=2.0.2",            -- latest
+				"visitors=20251114",     -- latest (requires ocaml >= 4.14.2)
+				"ppx_deriving=6.1.1",    -- latest
+				"ppx_deriving_yojson=3.10.0", -- latest
+				"ctypes=0.24.0",         -- latest
+				"ctypes-foreign=0.24.0",
+				"uucp=17.0.0",           -- latest
+				"sedlex=3.7",            -- latest
 			},
 		},
 		-- Metadata
