@@ -116,4 +116,43 @@ function M.get_make_command(os_type)
 	return "make"
 end
 
+-- Check architecture consistency on macOS (arm64 vs x86_64)
+-- The assembler error "unknown token in expression" with ARM64 instructions
+-- is typically caused by feeding ARM64 assembly to an x86_64 assembler
+-- See: https://github.com/ocaml/ocaml/issues/10374
+function M.check_architecture(os_type)
+	if os_type ~= "darwin" then
+		return nil -- Only relevant on macOS
+	end
+
+	-- Check if running under Rosetta (x86_64 emulation on arm64)
+	local f = io.popen("sysctl -n sysctl.proc_translated 2>/dev/null")
+	if f then
+		local translated = f:read("*a"):gsub("%s+", "")
+		f:close()
+		if translated == "1" then
+			return "Running under Rosetta (x86_64 emulation on arm64 Mac).\n"
+				.. "This can cause assembler errors due to architecture mismatch.\n"
+				.. "Please run in a native arm64 terminal.\n"
+				.. "Hint: Check your terminal app's 'Open using Rosetta' setting in Get Info."
+		end
+	end
+
+	-- Check Homebrew is arm64 (should be at /opt/homebrew, not /usr/local)
+	local f2 = io.popen("which brew 2>/dev/null")
+	if f2 then
+		local brew_path = f2:read("*a"):gsub("%s+", "")
+		f2:close()
+		if brew_path:find("/usr/local") then
+			return "Intel Homebrew detected at /usr/local.\n"
+				.. "On Apple Silicon, this can cause architecture mismatch errors.\n"
+				.. "Please use arm64 Homebrew at /opt/homebrew.\n"
+				.. "Hint: Install arm64 Homebrew with:\n"
+				.. "  /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+		end
+	end
+
+	return nil
+end
+
 return M

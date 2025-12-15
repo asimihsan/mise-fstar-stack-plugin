@@ -24,31 +24,29 @@ M.STACK_VERSIONS = {
 			commit = "5f493441d9324869eaf83d5994bd62f29aa9ee1e", -- From Everest hashes.sh
 			repository = "https://github.com/FStarLang/karamel",
 		},
-		-- OCaml toolchain (for Phase 2)
+		-- OCaml toolchain
 		ocaml = {
-			version = "5.4.0",  -- Updated from 5.2.1 for better macOS Tahoe support
-			-- Pin opam repo for reproducibility
-			opam_repo_commit = nil, -- TODO: determine working commit
-			-- Package versions compatible with OCaml 5.4.0
-			-- Updated to latest versions for macOS Tahoe compatibility
+			version = "4.14.2",  -- Stable version; KaRaMeL only needs >= 4.10.0
+			-- Let opam solve package versions instead of manual pinning
+			-- These are the packages KaRaMeL needs (from KaRaMeL docs)
 			packages = {
-				"batteries=3.10.0",      -- requires ocaml >= 4.05 & < 5.5
-				"zarith=1.14",           -- requires ocaml >= 4.04
-				"stdint=0.7.2",
-				"yojson=2.2.2",
-				"fileutils=0.6.6",
-				"menhir=20250912",       -- latest
-				"pprint=20230830",
-				"process=0.2.1",
-				"fix=20250919",          -- latest
-				"wasm=2.0.2",            -- latest
-				"visitors=20251114",     -- latest (requires ocaml >= 4.14.2)
-				"ppx_deriving=6.1.1",    -- latest
-				"ppx_deriving_yojson=3.10.0", -- latest
-				"ctypes=0.24.0",         -- latest
-				"ctypes-foreign=0.24.0",
-				"uucp=17.0.0",           -- latest
-				"sedlex=3.7",            -- latest
+				"batteries",
+				"zarith",
+				"stdint",
+				"yojson",
+				"fileutils",
+				"menhir",
+				"pprint",
+				"process",
+				"fix",
+				"wasm",
+				"visitors",
+				"ppx_deriving",
+				"ppx_deriving_yojson",
+				"ctypes",
+				"ctypes-foreign",
+				"uucp",
+				"sedlex",
 			},
 		},
 		-- Metadata

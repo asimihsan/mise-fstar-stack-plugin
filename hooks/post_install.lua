@@ -146,6 +146,12 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		error(prereq_err)
 	end
 
+	-- Check architecture consistency on macOS (arm64 vs x86_64 mismatch causes assembler errors)
+	local arch_err = prerequisites.check_architecture(os_type)
+	if arch_err then
+		error(arch_err)
+	end
+
 	-- Get appropriate make command (gmake on macOS if available)
 	local make_cmd = prerequisites.get_make_command(os_type)
 
