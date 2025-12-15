@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     curl git build-essential pkg-config unzip \
     # GMP library
     libgmp-dev \
+    # FFI library (required by ctypes-foreign)
+    libffi-dev \
     # OPAM and OCaml build deps
     opam m4 rsync \
     # SSL/TLS for downloads
