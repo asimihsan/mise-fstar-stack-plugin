@@ -52,6 +52,27 @@ local function opam_env(opam_root)
 	return "OPAMROOT=" .. quote(opam_root) .. " OPAMYES=1 OPAMCOLOR=never "
 end
 
+-- Get platform key from runtime
+local function get_platform_key()
+	local os_type = RUNTIME.osType -- luacheck: ignore
+	local arch_type = RUNTIME.archType -- luacheck: ignore
+	return os_type .. "_" .. arch_type
+end
+
+-- Download a file using curl
+local function download_file(url, dest_path, description)
+	local cmd = "curl -fsSL " .. quote(url) .. " -o " .. quote(dest_path)
+	local ok, err = run_command(cmd, description or "download")
+	return ok, err
+end
+
+-- Extract a zip file
+local function extract_zip(zip_path, dest_dir, description)
+	local cmd = "unzip -q " .. quote(zip_path) .. " -d " .. quote(dest_dir)
+	local ok, err = run_command(cmd, description or "extract zip")
+	return ok, err
+end
+
 -- Get native architecture on macOS
 -- Returns "arm64", "x86_64", or nil
 local function get_native_arch(os_type)
@@ -124,6 +145,269 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 				.. "Please install F* manually from: https://github.com/FStarLang/FStar/releases"
 		)
 	end
+
+	-- Check if this platform requires building F* from source
+	local platform_key = get_platform_key()
+	local is_source_build = versions.needs_fstar_source_build(platform_key)
+
+	-- For source builds, we need to build F* before verification
+	if is_source_build then
+		-- Get stack configuration early
+		local stack_config = versions.get_stack_config(version)
+		if not stack_config then
+			error("Unknown stack version: " .. tostring(version))
+		end
+
+		local fstar_config = stack_config.fstar
+		local z3_config = stack_config.z3
+		local ocaml_config = stack_config.ocaml
+		local karamel_config = stack_config.karamel
+
+		-- Check prerequisites before doing any work
+		local prereq_err = prerequisites.check_all_prerequisites(os_type)
+		if prereq_err then
+			error(prereq_err)
+		end
+
+		-- Get make command
+		local make_cmd = prerequisites.get_make_command(os_type)
+
+		-- Paths
+		local opam_root = file.join_path(path, "opam")
+		local opam_prefix = opam_env(opam_root)
+
+		-- Extract version number from tag (v2025.10.06 -> 2025.10.06)
+		local fstar_version = fstar_config.tag:gsub("^v", "")
+		-- Mise extracts source tarball to FStar-{version}/ directory
+		local fstar_src = file.join_path(path, "FStar-" .. fstar_version)
+
+		print("=== Building F* from source (this will take 30+ minutes) ===")
+		print("Platform: " .. platform_key)
+		print("F* version: " .. fstar_config.tag)
+
+		-- Step 1: Download and install Z3
+		print("Step 1/7: Downloading Z3...")
+		local z3_url = z3_config.urls[platform_key]
+		if not z3_url then
+			error("No Z3 binary URL configured for " .. platform_key)
+		end
+
+		local z3_zip = file.join_path(path, "z3.zip")
+		local ok, err = download_file(z3_url, z3_zip, "download Z3")
+		if not ok then
+			error(err)
+		end
+
+		-- Extract Z3 to temp location
+		local z3_extract_dir = file.join_path(path, "z3_extract")
+		ok, err = extract_zip(z3_zip, z3_extract_dir, "extract Z3")
+		if not ok then
+			error(err)
+		end
+
+		-- Z3 extracts to z3-{version}-{platform}/ directory, move contents to lib/fstar/z3-{version}/
+		local z3_version = z3_config.version
+		local z3_dest = file.join_path(path, "lib", "fstar", "z3-" .. z3_version)
+		ok, err = run_command("mkdir -p " .. quote(file.join_path(path, "lib", "fstar")), "create lib/fstar")
+		if not ok then
+			error(err)
+		end
+		-- Find the extracted directory (should be z3-4.13.3-arm64-glibc-2.34 or similar)
+		ok, err = run_command("mv " .. quote(z3_extract_dir) .. "/z3-* " .. quote(z3_dest), "move Z3 to lib/fstar")
+		if not ok then
+			error(err)
+		end
+
+		-- Cleanup
+		os.remove(z3_zip)
+		os.execute("rm -rf " .. quote(z3_extract_dir))
+
+		-- Make Z3 executable
+		os.execute("chmod +x " .. quote(z3_dest) .. "/bin/* 2>/dev/null")
+
+		local z3_bin_path = file.join_path(z3_dest, "bin")
+
+		-- Step 2: Initialize opam
+		print("Step 2/7: Initializing opam...")
+		ok, err = run_command(opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+		if not ok then
+			error(err)
+		end
+
+		-- Step 3: Create OCaml switch
+		print("Step 3/7: Creating OCaml switch (this takes several minutes)...")
+		local ocaml_version = ocaml_config.version
+		ok, err = run_command(
+			opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
+			"opam switch create"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Step 4: Install F* opam dependencies
+		print("Step 4/7: Installing F* dependencies...")
+		ok, err = run_command(
+			"cd "
+				.. quote(fstar_src)
+				.. " && "
+				.. opam_prefix
+				.. "opam exec --switch=default -- opam install --deps-only .",
+			"install F* dependencies"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Step 5: Build F* with Z3 in PATH
+		print("Step 5/7: Building F* (this takes 15-30 minutes)...")
+		local path_prefix = "PATH=" .. quote(z3_bin_path) .. ":$PATH "
+		ok, err = run_command(
+			"cd "
+				.. quote(fstar_src)
+				.. " && "
+				.. path_prefix
+				.. opam_prefix
+				.. "opam exec --switch=default -- "
+				.. make_cmd
+				.. " -j$(nproc 2>/dev/null || echo 4)",
+			"build F*"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Step 6: Install F* to mise path
+		print("Step 6/7: Installing F*...")
+		ok, err = run_command(
+			"cd "
+				.. quote(fstar_src)
+				.. " && "
+				.. opam_prefix
+				.. "opam exec --switch=default -- "
+				.. make_cmd
+				.. " install PREFIX="
+				.. quote(path),
+			"install F*"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Cleanup source directory (optional - saves ~500MB)
+		-- Keeping it for now for debugging
+		-- os.execute("rm -rf " .. quote(fstar_src))
+
+		-- Now verify F* installation and build KaRaMeL
+		print("Step 7/7: Building KaRaMeL...")
+
+		-- Paths for verification (now F* is installed)
+		local bin_dir = file.join_path(path, "bin")
+		local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
+		local fstar_exe = file.join_path(bin_dir, "fstar.exe")
+
+		-- Set executable permissions
+		os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
+
+		-- Verify F* installation
+		if not file.exists(fstar_exe) then
+			error("F* build incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
+		end
+
+		local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
+		if not exec_succeeded(test_result) then
+			error("F* binary verification failed")
+		end
+
+		if not file.exists(ulib_dir) then
+			error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
+		end
+
+		-- Build KaRaMeL
+		local karamel_dir = file.join_path(path, "karamel")
+		local karamel_commit = karamel_config.commit
+		local karamel_repo = karamel_config.repository
+
+		ok, err = run_command(
+			"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir),
+			"git clone karamel"
+		)
+		if not ok then
+			error(err)
+		end
+
+		ok, err =
+			run_command("cd " .. quote(karamel_dir) .. " && git checkout " .. karamel_commit, "git checkout commit")
+		if not ok then
+			error(err)
+		end
+
+		ok, err = run_command(
+			"cd " .. quote(karamel_dir) .. " && git submodule update --init --recursive",
+			"git submodule update"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Install KaRaMeL OCaml packages (merge with F* packages that are already installed)
+		local packages = table.concat(ocaml_config.packages, " ")
+		ok, err =
+			run_command(opam_prefix .. "opam install --switch=default " .. packages, "opam install karamel packages")
+		if not ok then
+			error(err)
+		end
+
+		-- Build KaRaMeL
+		local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " FSTAR_HOME=" .. quote(path) .. " "
+		ok, err = run_command(
+			"cd "
+				.. quote(karamel_dir)
+				.. " && "
+				.. build_env
+				.. "opam exec --switch=default -- "
+				.. make_cmd
+				.. " -j$(nproc 2>/dev/null || echo 4)",
+			"karamel build"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Build krmllib
+		ok, err = run_command(
+			"cd "
+				.. quote(karamel_dir)
+				.. " && "
+				.. build_env
+				.. "opam exec --switch=default -- "
+				.. make_cmd
+				.. " -C krmllib",
+			"krmllib build"
+		)
+		if not ok then
+			error(err)
+		end
+
+		-- Verify KaRaMeL installation
+		local krml_exe = file.join_path(karamel_dir, "_build", "default", "src", "Karamel.exe")
+		if not file.exists(krml_exe) then
+			error("KaRaMeL build incomplete: Karamel.exe not found. Expected at: " .. krml_exe)
+		end
+
+		local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " -version"
+		local krml_test = os.execute(krml_test_cmd .. " > /dev/null 2>&1")
+		if not exec_succeeded(krml_test) then
+			error("KaRaMeL binary verification failed")
+		end
+
+		print("=== F* source build complete ===")
+		return -- Done with source build path
+	end
+
+	-- ========================================
+	-- Pre-built binary path (darwin_*, linux_amd64)
+	-- ========================================
 
 	-- Mise extracts tarball contents directly to install path
 	-- (strips the top-level fstar/ directory)

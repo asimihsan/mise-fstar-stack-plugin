@@ -1,0 +1,67 @@
+# Dockerfile for testing F* source build on Linux ARM64
+# This builds F* from source since no pre-built ARM64 binary exists
+#
+# Build with: docker build --platform linux/arm64 -f test/Dockerfile.arm64 -t fstar-arm64-test .
+# Note: On x86_64 hosts, this requires QEMU emulation and takes 1-2 hours
+
+FROM arm64v8/ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install prerequisites (comprehensive for F* + KaRaMeL source builds)
+RUN apt-get update && apt-get install -y \
+    # Core build tools
+    curl git build-essential pkg-config unzip \
+    # GMP library
+    libgmp-dev \
+    # FFI library (required by ctypes-foreign)
+    libffi-dev \
+    # OPAM and OCaml build deps
+    opam m4 rsync \
+    # SSL/TLS for downloads
+    ca-certificates libssl-dev \
+    # Sometimes needed by opam packages
+    zlib1g-dev python3 \
+    # GNU time (required by KaRaMeL's krmllib build)
+    time \
+    && rm -rf /var/lib/apt/lists/*
+
+# Disable opam sandboxing in container (required)
+RUN opam init --bare --no-setup --disable-sandboxing
+
+# Install mise
+RUN curl https://mise.jdx.dev/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+
+# Install plugin from GitHub
+ARG GH_TOKEN
+ENV GH_TOKEN=${GH_TOKEN}
+RUN mise plugin install fstar-stack https://github.com/asimihsan/mise-fstar-stack-plugin
+
+# Create workspace
+WORKDIR /workspace
+
+# Trust mise config
+RUN echo '[settings]' > mise.toml && \
+    echo 'experimental = true' >> mise.toml && \
+    mise trust
+
+# Install fstar-stack (SOURCE BUILD - this takes 30-60 minutes!)
+# F* is built from source, then KaRaMeL is built
+RUN mise install fstar-stack@2025.10.06-stack.1
+
+# Verify tools work
+RUN mise exec -- fstar.exe --version
+RUN mise exec -- Karamel.exe -version || \
+    mise exec -- $(mise where fstar-stack)/karamel/_build/default/src/Karamel.exe -version
+
+# Verify architecture is ARM64
+RUN file $(mise where fstar-stack)/bin/fstar.exe | grep -q aarch64 && \
+    echo "=== F* ARCHITECTURE VERIFICATION PASSED (arm64) ==="
+RUN file $(mise where fstar-stack)/karamel/krmllib/dist/generic/libkrmllib.a && \
+    echo "=== KRMLLIB BUILT ==="
+
+# Final verification
+RUN mise exec -- fstar.exe --version && \
+    mise exec -- Karamel.exe -version && \
+    echo "=== ARM64 TOOLCHAIN VERIFICATION PASSED ==="

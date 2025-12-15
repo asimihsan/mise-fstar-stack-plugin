@@ -3,6 +3,8 @@
 
 local M = {}
 
+local versions = require("lib.versions")
+
 -- Prerequisites with platform-specific hints
 M.PREREQUISITES = {
 	{
@@ -69,6 +71,31 @@ M.PREREQUISITES = {
 	},
 }
 
+-- Additional prerequisites required for F* source builds (linux_arm64)
+M.SOURCE_BUILD_PREREQUISITES = {
+	{
+		name = "unzip",
+		command = "unzip -v",
+		hint = {
+			linux = "apt install unzip  # or your package manager",
+		},
+	},
+	{
+		name = "m4",
+		command = "m4 --version",
+		hint = {
+			linux = "apt install m4  # or your package manager",
+		},
+	},
+	{
+		name = "rsync",
+		command = "rsync --version",
+		hint = {
+			linux = "apt install rsync  # or your package manager",
+		},
+	},
+}
+
 -- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values)
 local function exec_succeeded(result)
 	return result == true or result == 0
@@ -106,10 +133,67 @@ function M.check_all_prerequisites(os_type)
 		end
 	end
 
+	-- Check source build prerequisites for platforms that need them
+	local arch_type = RUNTIME and RUNTIME.archType or "amd64" -- luacheck: ignore
+	local platform_key = os_type .. "_" .. arch_type
+	if versions.needs_fstar_source_build(platform_key) then
+		for _, prereq in ipairs(M.SOURCE_BUILD_PREREQUISITES) do
+			local ok, err = M.check_prerequisite(prereq, os_type)
+			if not ok then
+				table.insert(missing, err)
+			end
+		end
+
+		-- Check glibc version on Linux (Z3 ARM64 requires glibc 2.34+)
+		if os_type == "linux" then
+			local glibc_err = M.check_glibc_version()
+			if glibc_err then
+				table.insert(missing, glibc_err)
+			end
+		end
+	end
+
 	if #missing > 0 then
-		return "KaRaMeL build requires the following prerequisites:\n\n"
+		local build_type = versions.needs_fstar_source_build(platform_key) and "F* source" or "KaRaMeL"
+		return build_type
+			.. " build requires the following prerequisites:\n\n"
 			.. table.concat(missing, "\n\n")
 			.. "\n\nAfter installing prerequisites, run: mise install fstar-stack"
+	end
+
+	return nil
+end
+
+-- Check glibc version on Linux
+-- Z3 ARM64 binary requires glibc 2.34+ (Ubuntu 22.04+)
+function M.check_glibc_version()
+	-- Check if we're on musl (Alpine) - not supported
+	local f = io.popen("ldd --version 2>&1")
+	if f then
+		local output = f:read("*a") or ""
+		f:close()
+
+		-- Check for musl (Alpine Linux)
+		if output:match("musl") then
+			return "Alpine Linux (musl) detected.\n"
+				.. "  The Z3 ARM64 binary requires glibc.\n"
+				.. "  Please use Ubuntu 22.04+ or another glibc-based distribution."
+		end
+
+		-- Extract glibc version (e.g., "ldd (GNU libc) 2.35")
+		local major, minor = output:match("(%d+)%.(%d+)")
+		if major and minor then
+			local version = tonumber(major) * 100 + tonumber(minor)
+			if version < 234 then
+				return "glibc version too old (found "
+					.. major
+					.. "."
+					.. minor
+					.. ", need 2.34+).\n"
+					.. "  Z3 ARM64 requires glibc 2.34+ (Ubuntu 22.04+).\n"
+					.. "  Please upgrade your distribution."
+			end
+		end
 	end
 
 	return nil

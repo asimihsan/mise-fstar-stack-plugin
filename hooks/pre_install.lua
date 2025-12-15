@@ -93,7 +93,32 @@ function PLUGIN:PreInstall(ctx) -- luacheck: ignore
 		)
 	end
 
-	-- Query GitHub releases API for F* assets
+	-- For platforms without pre-built binaries, return the source tarball
+	-- F* will be built from source in post_install
+	if versions.needs_fstar_source_build(platform_key) then
+		if not fstar_config.source_url or not fstar_config.source_sha256 then
+			error(
+				"Source build required for "
+					.. platform_key
+					.. " but source tarball URL/SHA256 not configured.\n"
+					.. "Please update lib/versions.lua with source_url and source_sha256."
+			)
+		end
+		return {
+			version = version,
+			url = fstar_config.source_url,
+			sha256 = fstar_config.source_sha256,
+			note = "fstar-stack "
+				.. version
+				.. " (F* "
+				.. fstar_tag
+				.. " source - will build from source for "
+				.. platform_key
+				.. ")",
+		}
+	end
+
+	-- Query GitHub releases API for F* assets (pre-built binary path)
 	local release_url = "https://api.github.com/repos/FStarLang/FStar/releases/tags/" .. fstar_tag
 	local resp, err = http.get({
 		url = release_url,

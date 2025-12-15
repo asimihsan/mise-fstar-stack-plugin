@@ -6,17 +6,42 @@ local M = {}
 
 -- Stack versions with pinned component versions and checksums
 -- Format: YYYY.MM.DD-stack.N where the date is the F* release date
+-- Platforms that require building F* from source (no pre-built binaries available)
+-- NOTE: Do not use sha256==nil to detect this, as darwin_amd64 is also nil
+M.SOURCE_BUILD_PLATFORMS = {
+	["linux_arm64"] = true,
+}
+
+-- Check if a platform requires building F* from source
+function M.needs_fstar_source_build(platform_key)
+	return M.SOURCE_BUILD_PLATFORMS[platform_key] == true
+end
+
 M.STACK_VERSIONS = {
 	["2025.10.06-stack.1"] = {
 		-- F* configuration
 		fstar = {
 			tag = "v2025.10.06",
+			-- Source tarball for platforms that need to build from source
+			source_url = "https://github.com/FStarLang/FStar/archive/refs/tags/v2025.10.06.tar.gz",
+			source_sha256 = "e31ec0ee04c0bf45cb55dbcdb3fbb3c64c850c09be0890a565f89302c015ac6e",
 			-- SHA256 checksums per platform (from GitHub release)
 			sha256 = {
 				["darwin_arm64"] = "e922281c189240d9e6a16684d5d3b9f3343d345ba2c6cd55ce9b68025c823373",
 				["darwin_amd64"] = nil, -- Not available for this release
 				["linux_amd64"] = "940c187d7a6dc3e95d17fd5159b5eaec17d62981c7f135a7e6c531ce3b59442d",
-				["linux_arm64"] = nil, -- Not available for this release
+				["linux_arm64"] = nil, -- Not available, use source build
+			},
+		},
+		-- Z3 configuration for source build platforms (bundled with F* binary on other platforms)
+		z3 = {
+			version = "4.13.3",
+			-- Only platforms that need separate Z3 download (source build platforms)
+			urls = {
+				["linux_arm64"] = "https://github.com/Z3Prover/z3/releases/download/z3-4.13.3/z3-4.13.3-arm64-glibc-2.34.zip",
+			},
+			sha256 = {
+				["linux_arm64"] = "5bc5fd2c501445970de3b13d5699ff601ff51d3e496cb15ce67d7ee2a4a93b03",
 			},
 		},
 		-- KaRaMeL configuration (for Phase 2)
