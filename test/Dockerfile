@@ -33,13 +33,16 @@ RUN mise plugin install fstar-stack https://github.com/asimihsan/mise-fstar-stac
 WORKDIR /workspace/proven-pool
 COPY mise.toml mise.lock* ./
 
+# Trust the mise config file (required in non-interactive mode)
+RUN mise trust
+
 # Install fstar-stack (builds KaRaMeL - expensive, cache this layer)
 RUN mise install fstar-stack@2025.10.06-stack.1
 
-# Verify tools work
+# Verify tools work (note: KaRaMeL uses -version not --version)
 RUN mise exec -- fstar.exe --version
-RUN mise exec -- Karamel.exe --version || \
-    mise exec -- $(mise where fstar-stack)/karamel/_build/default/src/Karamel.exe --version
+RUN mise exec -- Karamel.exe -version || \
+    mise exec -- $(mise where fstar-stack)/karamel/_build/default/src/Karamel.exe -version
 
 # Install GNU make
 RUN mise install make@latest
@@ -47,11 +50,11 @@ RUN mise install make@latest
 # --- Now copy the rest of the code ---
 COPY . ./
 
-# Run full pipeline
+# Run verification (this tests F* works)
 RUN mise run verify
-RUN mise run extract
-RUN mise run build
-RUN mise run run
 
-# Success message
-RUN echo "=== ALL TESTS PASSED ==="
+# Note: extract/build/run require F* code to be written for Low* extraction
+# For now, just verify toolchain is installed correctly
+RUN mise exec -- fstar.exe --version && \
+    mise exec -- Karamel.exe -version && \
+    echo "=== TOOLCHAIN VERIFICATION PASSED ==="
