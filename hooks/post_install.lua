@@ -52,6 +52,26 @@ local function opam_env(opam_root)
 	return "OPAMROOT=" .. quote(opam_root) .. " OPAMYES=1 OPAMCOLOR=never "
 end
 
+-- Get arch command prefix for macOS to ensure native arm64 execution
+-- This prevents architecture mismatch errors where arm64 assembly is fed to x86_64 assembler
+-- See: https://github.com/ocaml/ocaml/issues/10374
+local function get_arch_prefix(os_type)
+	if os_type == "darwin" then
+		-- Check native architecture
+		local f = io.popen("uname -m 2>/dev/null")
+		if f then
+			local arch = f:read("*a"):gsub("%s+", "")
+			f:close()
+			if arch == "arm64" then
+				return "arch -arm64 "
+			elseif arch == "x86_64" then
+				return "arch -x86_64 "
+			end
+		end
+	end
+	return ""
+end
+
 function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Defensive checks for context structure
 	if not ctx then
@@ -163,8 +183,11 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Environment for opam commands
 	local opam_prefix = opam_env(opam_root)
 
+	-- Get architecture prefix for macOS (ensures native arm64/x86_64 execution)
+	local arch_prefix = get_arch_prefix(os_type)
+
 	-- Step 1: Initialize opam (isolated root, no shell setup)
-	local ok, err = run_command(opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+	local ok, err = run_command(arch_prefix .. opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
 	if not ok then
 		error(err)
 	end
@@ -172,7 +195,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 2: Create OCaml switch
 	local ocaml_version = ocaml_config.version
 	ok, err = run_command(
-		opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
+		arch_prefix .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
 		"opam switch create"
 	)
 	if not ok then
@@ -180,9 +203,9 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Step 3: Install OCaml packages
-	-- Build package install command from pinned versions
+	-- Build package install command (let opam solve versions)
 	local packages = table.concat(ocaml_config.packages, " ")
-	ok, err = run_command(opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
+	ok, err = run_command(arch_prefix .. opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
 	if not ok then
 		error(err)
 	end
@@ -236,7 +259,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Step 5: Build KaRaMeL
 	-- Need to use opam exec to have the right OCaml environment
-	local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " "
+	-- arch_prefix ensures native architecture execution to prevent assembler errors
+	local build_env = arch_prefix .. opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " "
 
 	ok, err = run_command(
 		"cd "
@@ -274,7 +298,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Test krml works (need opam environment for OCaml libs)
 	local krml_test =
-		os.execute(opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
+		os.execute(arch_prefix .. opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
 	if not exec_succeeded(krml_test) then
 		error("KaRaMeL binary verification failed")
 	end
