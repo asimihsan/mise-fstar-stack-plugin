@@ -320,7 +320,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Test krml works (need opam environment for OCaml libs)
-	local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version"
+	-- Note: KaRaMeL uses single-dash flags (-version, not --version)
+	local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " -version"
 	local test_output_file = os.tmpname()
 	local krml_test = os.execute(krml_test_cmd .. " > " .. quote(test_output_file) .. " 2>&1")
 	if not exec_succeeded(krml_test) then
