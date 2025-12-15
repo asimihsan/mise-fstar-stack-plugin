@@ -76,10 +76,18 @@ end
 local function get_arch_cc_flags(os_type)
 	local arch = get_native_arch(os_type)
 	if arch then
-		return 'CC="clang -arch ' .. arch .. '" '
-			.. 'AS="clang -arch ' .. arch .. ' -c" '
-			.. 'CFLAGS="-arch ' .. arch .. '" '
-			.. 'LDFLAGS="-arch ' .. arch .. '" '
+		return 'CC="clang -arch '
+			.. arch
+			.. '" '
+			.. 'AS="clang -arch '
+			.. arch
+			.. ' -c" '
+			.. 'CFLAGS="-arch '
+			.. arch
+			.. '" '
+			.. 'LDFLAGS="-arch '
+			.. arch
+			.. '" '
 	end
 	return ""
 end
@@ -282,8 +290,16 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Step 5: Build KaRaMeL
 	-- Need to use opam exec to have the right OCaml environment
-	-- Architecture is already baked into OCaml's toolchain via CC/CFLAGS/LDFLAGS at switch creation
-	local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " "
+	-- Include arch_cc_flags to ensure krmllib C code is also built for the correct architecture
+	-- (krmllib calls the system C compiler directly, not through OCaml's wrapped compiler)
+	local build_env = arch_cc_flags
+		.. opam_prefix
+		.. "FSTAR_EXE="
+		.. quote(fstar_exe)
+		.. " "
+		.. "FSTAR_HOME="
+		.. quote(path)
+		.. " "
 
 	ok, err = run_command(
 		"cd "
@@ -312,6 +328,35 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	)
 	if not ok then
 		error(err)
+	end
+
+	-- Step 6b: Verify krmllib architecture on macOS
+	-- This catches build environment issues (e.g., running under Rosetta) early
+	if os_type == "darwin" and native_arch then
+		local krmllib_path = file.join_path(karamel_dir, "krmllib", "dist", "generic", "libkrmllib.a")
+		local arch_check_file = os.tmpname()
+		os.execute(
+			"lipo -info "
+				.. quote(krmllib_path)
+				.. " 2>/dev/null | grep -q "
+				.. native_arch
+				.. " && echo ok > "
+				.. quote(arch_check_file)
+		)
+		local af = io.open(arch_check_file, "r")
+		local arch_ok = af and (af:read("*a") or ""):match("ok")
+		if af then
+			af:close()
+		end
+		os.remove(arch_check_file)
+		if not arch_ok then
+			error(
+				"krmllib architecture mismatch: expected "
+					.. native_arch
+					.. " but got wrong architecture.\n"
+					.. "This may indicate a build environment issue. Check that you're not running under Rosetta."
+			)
+		end
 	end
 
 	-- Verify KaRaMeL installation

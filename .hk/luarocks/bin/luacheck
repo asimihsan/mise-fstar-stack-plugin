@@ -1,3 +1,0 @@
-#!/bin/sh
-
-LUAROCKS_SYSCONFDIR='/Users/asimi/.local/share/mise/installs/lua/5.4.8/luarocks/etc/luarocks' exec '/Users/asimi/.local/share/mise/installs/lua/5.4.8/bin/lua' -e 'package.path="/Users/asimi/workplace/mise-fstar-stack-plugin/.hk/luarocks/share/lua/5.4/?.lua;/Users/asimi/workplace/mise-fstar-stack-plugin/.hk/luarocks/share/lua/5.4/?/init.lua;"..package.path;package.cpath="/Users/asimi/workplace/mise-fstar-stack-plugin/.hk/luarocks/lib/lua/5.4/?.so;"..package.cpath;local k,l,_=pcall(require,"luarocks.loader") _=k and l.add_context("luacheck","1.2.0-1")' '/Users/asimi/workplace/mise-fstar-stack-plugin/.hk/luarocks/lib/luarocks/rocks-5.4/luacheck/1.2.0-1/bin/luacheck' "$@"

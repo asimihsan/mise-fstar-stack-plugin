@@ -6,6 +6,7 @@ actionlint = "latest"
 hk = "latest"
 lua = "5.4"
 pkl = "latest"
+shellcheck = "latest"
 stylua = "latest"
 
 [tasks.format]
@@ -14,7 +15,7 @@ run = "stylua metadata.lua hooks/ lib/"
 
 [tasks.lint]
 description = "Lint Lua scripts and GitHub Actions using hk"
-run = "hk check"
+run = ["hk check", "shellcheck test/*.sh"]
 
 [tasks.ci]
 description = "Run all CI checks"

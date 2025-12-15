@@ -26,7 +26,7 @@ M.STACK_VERSIONS = {
 		},
 		-- OCaml toolchain
 		ocaml = {
-			version = "4.14.2",  -- Stable version; KaRaMeL only needs >= 4.10.0
+			version = "4.14.2", -- Stable version; KaRaMeL only needs >= 4.10.0
 			-- Let opam solve package versions instead of manual pinning
 			-- These are the packages KaRaMeL needs (from KaRaMeL docs)
 			packages = {

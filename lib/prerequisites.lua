@@ -159,7 +159,7 @@ function M.check_architecture(os_type)
 				.. "On Apple Silicon, this can cause architecture mismatch errors.\n"
 				.. "Please use arm64 Homebrew at /opt/homebrew.\n"
 				.. "Hint: Install arm64 Homebrew with:\n"
-				.. "  /bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+				.. '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
 		end
 	end
 

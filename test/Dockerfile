@@ -48,8 +48,11 @@ RUN mise exec -- fstar.exe --version
 RUN mise exec -- Karamel.exe -version || \
     mise exec -- $(mise where fstar-stack)/karamel/_build/default/src/Karamel.exe -version
 
-# Install GNU make
-RUN mise install make@latest
+# Verify krmllib is x86_64 (expected for linux/amd64)
+RUN file $(mise where fstar-stack)/karamel/krmllib/dist/generic/libkrmllib.a | grep -q x86-64 && \
+    echo "=== ARCHITECTURE VERIFICATION PASSED (x86_64) ==="
+
+# GNU make is already installed via build-essential
 
 # --- Now copy the rest of the code ---
 COPY . ./
