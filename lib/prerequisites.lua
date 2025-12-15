@@ -59,12 +59,12 @@ M.PREREQUISITES = {
 	{
 		name = "gtime",
 		-- GNU time is required by KaRaMeL's krmllib build on macOS
-		-- On Linux, /usr/bin/time works fine
-		command = "gtime --version 2>/dev/null || /usr/bin/time --version 2>/dev/null",
+		-- On Linux, /usr/bin/time works fine (use -v to test, not --version)
+		command = "gtime --version 2>/dev/null || /usr/bin/time -v true 2>/dev/null",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
 		hint = {
 			darwin = "brew install gnu-time  # provides gtime",
-			linux = "time command is usually pre-installed",
+			linux = "apt install time  # or your package manager",
 		},
 	},
 }
