@@ -52,22 +52,33 @@ local function opam_env(opam_root)
 	return "OPAMROOT=" .. quote(opam_root) .. " OPAMYES=1 OPAMCOLOR=never "
 end
 
--- Get arch command prefix for macOS to ensure native arm64 execution
--- This prevents architecture mismatch errors where arm64 assembly is fed to x86_64 assembler
--- See: https://github.com/ocaml/ocaml/issues/10374
-local function get_arch_prefix(os_type)
-	if os_type == "darwin" then
-		-- Check native architecture
-		local f = io.popen("uname -m 2>/dev/null")
-		if f then
-			local arch = f:read("*a"):gsub("%s+", "")
-			f:close()
-			if arch == "arm64" then
-				return "arch -arm64 "
-			elseif arch == "x86_64" then
-				return "arch -x86_64 "
-			end
+-- Get native architecture on macOS
+-- Returns "arm64", "x86_64", or nil
+local function get_native_arch(os_type)
+	if os_type ~= "darwin" then
+		return nil
+	end
+	local f = io.popen("uname -m 2>/dev/null")
+	if f then
+		local arch = f:read("*a"):gsub("%s+", "")
+		f:close()
+		if arch == "arm64" or arch == "x86_64" then
+			return arch
 		end
+	end
+	return nil
+end
+
+-- Get C compiler flags to hardwire architecture into OCaml's toolchain
+-- This is the key fix for OCaml issue #10374: bake -arch into CC/CFLAGS/LDFLAGS
+-- so ocamlopt always calls clang with the correct architecture
+-- See: https://github.com/ocaml/ocaml/issues/10374
+local function get_arch_cc_flags(os_type)
+	local arch = get_native_arch(os_type)
+	if arch then
+		return 'CC="clang -arch ' .. arch .. '" '
+			.. 'CFLAGS="-arch ' .. arch .. '" '
+			.. 'LDFLAGS="-arch ' .. arch .. '" '
 	end
 	return ""
 end
@@ -183,20 +194,32 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Environment for opam commands
 	local opam_prefix = opam_env(opam_root)
 
-	-- Get architecture prefix for macOS (ensures native arm64/x86_64 execution)
-	local arch_prefix = get_arch_prefix(os_type)
+	-- Get architecture-specific compiler flags for macOS
+	-- This bakes -arch arm64/x86_64 into OCaml's C toolchain configuration
+	local arch_cc_flags = get_arch_cc_flags(os_type)
+	local native_arch = get_native_arch(os_type)
 
 	-- Step 1: Initialize opam (isolated root, no shell setup)
-	-- Note: env vars must come before arch prefix since arch doesn't understand VAR=val syntax
-	local ok, err = run_command(opam_prefix .. arch_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+	local ok, err = run_command(opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
 	if not ok then
 		error(err)
 	end
 
-	-- Step 2: Create OCaml switch
+	-- Step 1b: Set opam arch variable for macOS (ensures opam knows the target architecture)
+	-- This matches the OCaml community guidance for handling dual-arch situations
+	if native_arch then
+		ok, err = run_command(opam_prefix .. "opam var --global arch=" .. native_arch, "opam var arch")
+		if not ok then
+			error(err)
+		end
+	end
+
+	-- Step 2: Create OCaml switch with architecture-specific compiler flags
+	-- The key fix for OCaml issue #10374: bake -arch into CC/CFLAGS/LDFLAGS
+	-- so ocamlopt always calls clang with the correct architecture
 	local ocaml_version = ocaml_config.version
 	ok, err = run_command(
-		opam_prefix .. arch_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
+		arch_cc_flags .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
 		"opam switch create"
 	)
 	if not ok then
@@ -206,7 +229,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 3: Install OCaml packages
 	-- Build package install command (let opam solve versions)
 	local packages = table.concat(ocaml_config.packages, " ")
-	ok, err = run_command(opam_prefix .. arch_prefix .. "opam install --switch=default " .. packages, "opam install packages")
+	ok, err = run_command(opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
 	if not ok then
 		error(err)
 	end
@@ -260,9 +283,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Step 5: Build KaRaMeL
 	-- Need to use opam exec to have the right OCaml environment
-	-- arch_prefix ensures native architecture execution to prevent assembler errors
-	-- Note: env vars must come before arch prefix since arch doesn't understand VAR=val syntax
-	local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " " .. arch_prefix
+	-- Architecture is already baked into OCaml's toolchain via CC/CFLAGS/LDFLAGS at switch creation
+	local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " "
 
 	ok, err = run_command(
 		"cd "
@@ -300,7 +322,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Test krml works (need opam environment for OCaml libs)
 	local krml_test =
-		os.execute(opam_prefix .. arch_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
+		os.execute(opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
 	if not exec_succeeded(krml_test) then
 		error("KaRaMeL binary verification failed")
 	end
