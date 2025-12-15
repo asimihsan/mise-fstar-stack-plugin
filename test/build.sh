@@ -15,7 +15,9 @@ if [[ "$1" == "--no-cache" ]]; then
 fi
 
 echo "=== Building fstar-stack-test Docker image ==="
+# Use linux/amd64 platform because F* only provides x86_64 Linux builds
 docker build $CACHE_FLAG \
+    --platform linux/amd64 \
     -f "$SCRIPT_DIR/Dockerfile" \
     --build-arg GH_TOKEN="${GH_TOKEN:-}" \
     -t fstar-stack-test:latest \
