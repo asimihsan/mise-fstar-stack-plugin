@@ -14,6 +14,8 @@ RUN apt-get update && apt-get install -y \
     ca-certificates libssl-dev \
     # Sometimes needed by opam packages
     zlib1g-dev python3 \
+    # GNU time (required by KaRaMeL's krmllib build)
+    time \
     && rm -rf /var/lib/apt/lists/*
 
 # Disable opam sandboxing in container (required)
