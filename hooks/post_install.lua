@@ -320,9 +320,19 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Test krml works (need opam environment for OCaml libs)
-	local krml_test =
-		os.execute(opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
+	local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version"
+	local test_output_file = os.tmpname()
+	local krml_test = os.execute(krml_test_cmd .. " > " .. quote(test_output_file) .. " 2>&1")
 	if not exec_succeeded(krml_test) then
-		error("KaRaMeL binary verification failed")
+		-- Read output for error message
+		local tf = io.open(test_output_file, "r")
+		local test_output = ""
+		if tf then
+			test_output = tf:read("*a") or ""
+			tf:close()
+		end
+		os.remove(test_output_file)
+		error("KaRaMeL binary verification failed:\n" .. test_output)
 	end
+	os.remove(test_output_file)
 end
