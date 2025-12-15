@@ -187,7 +187,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local arch_prefix = get_arch_prefix(os_type)
 
 	-- Step 1: Initialize opam (isolated root, no shell setup)
-	local ok, err = run_command(arch_prefix .. opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+	-- Note: env vars must come before arch prefix since arch doesn't understand VAR=val syntax
+	local ok, err = run_command(opam_prefix .. arch_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
 	if not ok then
 		error(err)
 	end
@@ -195,7 +196,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 2: Create OCaml switch
 	local ocaml_version = ocaml_config.version
 	ok, err = run_command(
-		arch_prefix .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
+		opam_prefix .. arch_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
 		"opam switch create"
 	)
 	if not ok then
@@ -205,7 +206,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 3: Install OCaml packages
 	-- Build package install command (let opam solve versions)
 	local packages = table.concat(ocaml_config.packages, " ")
-	ok, err = run_command(arch_prefix .. opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
+	ok, err = run_command(opam_prefix .. arch_prefix .. "opam install --switch=default " .. packages, "opam install packages")
 	if not ok then
 		error(err)
 	end
@@ -260,7 +261,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 5: Build KaRaMeL
 	-- Need to use opam exec to have the right OCaml environment
 	-- arch_prefix ensures native architecture execution to prevent assembler errors
-	local build_env = arch_prefix .. opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " "
+	-- Note: env vars must come before arch prefix since arch doesn't understand VAR=val syntax
+	local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " " .. "FSTAR_HOME=" .. quote(path) .. " " .. arch_prefix
 
 	ok, err = run_command(
 		"cd "
@@ -298,7 +300,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Test krml works (need opam environment for OCaml libs)
 	local krml_test =
-		os.execute(arch_prefix .. opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
+		os.execute(opam_prefix .. arch_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " --version > /dev/null 2>&1")
 	if not exec_succeeded(krml_test) then
 		error("KaRaMeL binary verification failed")
 	end
