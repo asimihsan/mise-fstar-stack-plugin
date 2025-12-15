@@ -69,14 +69,15 @@ local function get_native_arch(os_type)
 	return nil
 end
 
--- Get C compiler flags to hardwire architecture into OCaml's toolchain
--- This is the key fix for OCaml issue #10374: bake -arch into CC/CFLAGS/LDFLAGS
--- so ocamlopt always calls clang with the correct architecture
+-- Get C compiler/assembler flags to hardwire architecture into OCaml's toolchain
+-- This is the key fix for OCaml issue #10374: bake -arch into CC/AS/CFLAGS/LDFLAGS
+-- so ocamlopt always calls clang and the assembler with the correct architecture
 -- See: https://github.com/ocaml/ocaml/issues/10374
 local function get_arch_cc_flags(os_type)
 	local arch = get_native_arch(os_type)
 	if arch then
 		return 'CC="clang -arch ' .. arch .. '" '
+			.. 'AS="clang -arch ' .. arch .. ' -c" '
 			.. 'CFLAGS="-arch ' .. arch .. '" '
 			.. 'LDFLAGS="-arch ' .. arch .. '" '
 	end
@@ -219,28 +220,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- so ocamlopt always calls clang with the correct architecture
 	local ocaml_version = ocaml_config.version
 	local switch_cmd = arch_cc_flags .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch"
-	-- Debug: print the command being run
-	io.stderr:write("[DEBUG] switch_cmd: " .. switch_cmd .. "\n")
 	ok, err = run_command(switch_cmd, "opam switch create")
 	if not ok then
 		error(err)
 	end
-
-	-- Debug: check OCaml configuration after switch creation
-	local config_file = os.tmpname()
-	os.execute(opam_prefix .. "opam exec --switch=default -- ocamlopt -config > " .. quote(config_file) .. " 2>&1")
-	local cf = io.open(config_file, "r")
-	if cf then
-		local config_output = cf:read("*a") or ""
-		cf:close()
-		-- Extract key lines
-		for line in config_output:gmatch("[^\n]+") do
-			if line:match("^native_c_compiler:") or line:match("^architecture:") or line:match("^asm:") then
-				io.stderr:write("[DEBUG] " .. line .. "\n")
-			end
-		end
-	end
-	os.remove(config_file)
 
 	-- Step 3: Install OCaml packages
 	-- Build package install command (let opam solve versions)

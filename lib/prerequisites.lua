@@ -56,6 +56,17 @@ M.PREREQUISITES = {
 			linux = "apt install build-essential  # or your package manager",
 		},
 	},
+	{
+		name = "gtime",
+		-- GNU time is required by KaRaMeL's krmllib build on macOS
+		-- On Linux, /usr/bin/time works fine
+		command = "gtime --version 2>/dev/null || /usr/bin/time --version 2>/dev/null",
+		darwin_check = "gtime --version", -- macOS requires gtime specifically
+		hint = {
+			darwin = "brew install gnu-time  # provides gtime",
+			linux = "time command is usually pre-installed",
+		},
+	},
 }
 
 -- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values)
