@@ -27,10 +27,17 @@ RUN opam init --bare --no-setup --disable-sandboxing
 RUN curl https://mise.jdx.dev/install.sh | sh
 ENV PATH="/root/.local/bin:$PATH"
 
-# Install plugin from GitHub
+# Copy local plugin files instead of installing from GitHub
+# This allows testing local changes before pushing
+COPY hooks/ /root/.local/share/mise/plugins/fstar-stack/hooks/
+COPY lib/ /root/.local/share/mise/plugins/fstar-stack/lib/
+COPY metadata.lua /root/.local/share/mise/plugins/fstar-stack/
+
 ARG GH_TOKEN
 ENV GH_TOKEN=${GH_TOKEN}
-RUN mise plugin install fstar-stack https://github.com/asimihsan/mise-fstar-stack-plugin
+
+# Create workspace
+WORKDIR /workspace
 
 # --- LAYER CACHING OPTIMIZATION ---
 # Copy only mise config first to cache tool installation
@@ -41,7 +48,7 @@ COPY mise.toml mise.lock* ./
 RUN mise trust
 
 # Install fstar-stack (builds KaRaMeL - expensive, cache this layer)
-RUN mise install fstar-stack@2025.10.06-stack.1
+RUN mise install fstar-stack@2025.12.15-stack.1
 
 # Verify tools work (note: KaRaMeL uses -version not --version)
 RUN mise exec -- fstar.exe --version
