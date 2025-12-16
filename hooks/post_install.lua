@@ -176,10 +176,9 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local opam_root = file.join_path(path, "opam")
 		local opam_prefix = opam_env(opam_root)
 
-		-- Extract version number from tag (v2025.10.06 -> 2025.10.06)
-		local fstar_version = fstar_config.tag:gsub("^v", "")
-		-- Mise extracts source tarball to FStar-{version}/ directory
-		local fstar_src = file.join_path(path, "FStar-" .. fstar_version)
+		-- Mise extracts tarball and moves contents of FStar-{version}/ directly to install path
+		-- (it strips the top-level directory, so files are directly at `path`)
+		local fstar_src = path
 
 		print("=== Building F* from source (this will take 30+ minutes) ===")
 		print("Platform: " .. platform_key)
@@ -247,12 +246,14 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 		-- Step 4: Install F* opam dependencies
 		print("Step 4/7: Installing F* dependencies...")
+		-- Need to set OPAMSWITCH explicitly for nested opam commands
+		local opam_switch_prefix = opam_prefix .. "OPAMSWITCH=default "
 		ok, err = run_command(
 			"cd "
 				.. quote(fstar_src)
 				.. " && "
-				.. opam_prefix
-				.. "opam exec --switch=default -- opam install --deps-only .",
+				.. opam_switch_prefix
+				.. "opam install --deps-only .",
 			"install F* dependencies"
 		)
 		if not ok then
@@ -267,8 +268,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 				.. quote(fstar_src)
 				.. " && "
 				.. path_prefix
-				.. opam_prefix
-				.. "opam exec --switch=default -- "
+				.. opam_switch_prefix
+				.. "opam exec -- "
 				.. make_cmd
 				.. " -j$(nproc 2>/dev/null || echo 4)",
 			"build F*"
@@ -283,8 +284,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 			"cd "
 				.. quote(fstar_src)
 				.. " && "
-				.. opam_prefix
-				.. "opam exec --switch=default -- "
+				.. opam_switch_prefix
+				.. "opam exec -- "
 				.. make_cmd
 				.. " install PREFIX="
 				.. quote(path),
@@ -353,19 +354,19 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		-- Install KaRaMeL OCaml packages (merge with F* packages that are already installed)
 		local packages = table.concat(ocaml_config.packages, " ")
 		ok, err =
-			run_command(opam_prefix .. "opam install --switch=default " .. packages, "opam install karamel packages")
+			run_command(opam_switch_prefix .. "opam install " .. packages, "opam install karamel packages")
 		if not ok then
 			error(err)
 		end
 
 		-- Build KaRaMeL
-		local build_env = opam_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " FSTAR_HOME=" .. quote(path) .. " "
+		local build_env = opam_switch_prefix .. "FSTAR_EXE=" .. quote(fstar_exe) .. " FSTAR_HOME=" .. quote(path) .. " "
 		ok, err = run_command(
 			"cd "
 				.. quote(karamel_dir)
 				.. " && "
 				.. build_env
-				.. "opam exec --switch=default -- "
+				.. "opam exec -- "
 				.. make_cmd
 				.. " -j$(nproc 2>/dev/null || echo 4)",
 			"karamel build"
@@ -380,7 +381,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 				.. quote(karamel_dir)
 				.. " && "
 				.. build_env
-				.. "opam exec --switch=default -- "
+				.. "opam exec -- "
 				.. make_cmd
 				.. " -C krmllib",
 			"krmllib build"
@@ -395,7 +396,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 			error("KaRaMeL build incomplete: Karamel.exe not found. Expected at: " .. krml_exe)
 		end
 
-		local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " -version"
+		local krml_test_cmd = opam_switch_prefix .. "opam exec -- " .. quote(krml_exe) .. " -version"
 		local krml_test = os.execute(krml_test_cmd .. " > /dev/null 2>&1")
 		if not exec_succeeded(krml_test) then
 			error("KaRaMeL binary verification failed")
