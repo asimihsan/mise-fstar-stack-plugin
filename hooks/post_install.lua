@@ -5,6 +5,7 @@
 local file = require("file")
 local prerequisites = require("lib.prerequisites")
 local versions = require("lib.versions")
+local find_install = require("lib.find_install")
 
 -- Shell-escape a path for safe use in os.execute()
 local function quote(path)
@@ -249,11 +250,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		-- Need to set OPAMSWITCH explicitly for nested opam commands
 		local opam_switch_prefix = opam_prefix .. "OPAMSWITCH=default "
 		ok, err = run_command(
-			"cd "
-				.. quote(fstar_src)
-				.. " && "
-				.. opam_switch_prefix
-				.. "opam install --deps-only .",
+			"cd " .. quote(fstar_src) .. " && " .. opam_switch_prefix .. "opam install --deps-only .",
 			"install F* dependencies"
 		)
 		if not ok then
@@ -353,8 +350,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 		-- Install KaRaMeL OCaml packages (merge with F* packages that are already installed)
 		local packages = table.concat(ocaml_config.packages, " ")
-		ok, err =
-			run_command(opam_switch_prefix .. "opam install " .. packages, "opam install karamel packages")
+		ok, err = run_command(opam_switch_prefix .. "opam install " .. packages, "opam install karamel packages")
 		if not ok then
 			error(err)
 		end
@@ -377,13 +373,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 		-- Build krmllib
 		ok, err = run_command(
-			"cd "
-				.. quote(karamel_dir)
-				.. " && "
-				.. build_env
-				.. "opam exec -- "
-				.. make_cmd
-				.. " -C krmllib",
+			"cd " .. quote(karamel_dir) .. " && " .. build_env .. "opam exec -- " .. make_cmd .. " -C krmllib",
 			"krmllib build"
 		)
 		if not ok then
@@ -410,14 +400,42 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Pre-built binary path (darwin_*, linux_amd64)
 	-- ========================================
 
-	-- Mise extracts tarball contents directly to install path
-	-- (strips the top-level fstar/ directory)
-	-- Structure: {path}/bin/fstar.exe, {path}/lib/fstar/ulib/...
+	-- Step 1: Detect and normalize installation structure
+	-- Mise may or may not strip the top-level directory from tarballs
+	-- We use reference files (fstar.exe, ulib/) to find the actual root
+	print("Step 1/5: Detecting installation structure...")
+	local actual_root, is_normalized = find_install.find_fstar_root(path)
 
-	-- Paths for verification
+	if not actual_root then
+		-- Provide helpful debugging info
+		local contents = find_install.list_directory(path)
+		error(
+			"Could not find F* installation in extracted contents.\n"
+				.. "Expected to find bin/fstar.exe or lib/fstar/ulib/ in:\n"
+				.. path
+				.. "\n\n"
+				.. "Extracted contents:\n"
+				.. contents
+		)
+	end
+
+	if not is_normalized then
+		print("  Found F* at: " .. actual_root)
+		print("  Moving to expected location...")
+		local ok, err = find_install.normalize_structure(path, actual_root)
+		if not ok then
+			error("Failed to normalize installation structure: " .. (err or "unknown error"))
+		end
+		print("  Structure normalized successfully")
+	end
+
+	-- Paths for verification (now guaranteed to be at expected location)
 	local bin_dir = file.join_path(path, "bin")
 	local ulib_dir = file.join_path(path, "lib", "fstar", "ulib")
 	local fstar_exe = file.join_path(bin_dir, "fstar.exe")
+
+	-- Step 2: Set permissions and remove quarantine
+	print("Step 2/5: Setting permissions...")
 
 	-- On macOS: Remove quarantine attributes (can be skipped with env var)
 	if os_type == "darwin" then
@@ -432,7 +450,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
 	os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
 
-	-- Verify installation
+	-- Step 3: Verify F* installation
+	print("Step 3/5: Verifying F* installation...")
 	if not file.exists(ulib_dir) then
 		error("F* installation incomplete: lib/fstar/ulib not found. Expected at: " .. ulib_dir)
 	end
@@ -453,8 +472,13 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Allow skipping KaRaMeL build via environment variable
 	local skip_karamel = os.getenv("MISE_FSTAR_STACK_SKIP_KARAMEL")
 	if skip_karamel == "1" then
+		print("Step 4/5: Skipping KaRaMeL build (MISE_FSTAR_STACK_SKIP_KARAMEL=1)")
+		print("Step 5/5: Installation complete (F* only)")
 		return -- F* only installation
 	end
+
+	-- Step 4: Build KaRaMeL
+	print("Step 4/5: Building KaRaMeL (this takes several minutes)...")
 
 	-- Get stack configuration for KaRaMeL/OCaml versions
 	local stack_config = versions.get_stack_config(version)
@@ -644,7 +668,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		end
 	end
 
-	-- Verify KaRaMeL installation
+	-- Step 5: Verify KaRaMeL installation
+	print("Step 5/5: Verifying KaRaMeL installation...")
 	if not file.exists(krml_exe) then
 		error("KaRaMeL build incomplete: Karamel.exe not found. Expected at: " .. krml_exe)
 	end
@@ -666,4 +691,5 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		error("KaRaMeL binary verification failed:\n" .. test_output)
 	end
 	os.remove(test_output_file)
+	print("=== fstar-stack installation complete ===")
 end

@@ -7,22 +7,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
 
 echo "=== Linking plugin for testing ==="
-mise plugin link --force fstar "$PLUGIN_DIR"
+mise plugin link --force fstar-stack "$PLUGIN_DIR"
 
 echo ""
-echo "=== Installing F* 2025.10.06 ==="
+echo "=== Installing F* 2025.12.15 ==="
 # Reinstall to test the plugin (--force to reinstall if already installed)
-mise install fstar@2025.10.06 --force
+mise install fstar-stack@2025.12.15-stack.1 --force
 
 echo ""
 echo "=== Test 1: Version check ==="
-output=$(mise exec "fstar@2025.10.06" -- fstar.exe --version)
+output=$(mise exec "fstar-stack@2025.12.15-stack.1" -- fstar.exe --version)
 echo "fstar output: $output"
 
-if echo "$output" | grep -q '2025.10.06'; then
+if echo "$output" | grep -q '2025.12.15'; then
     echo "✓ Version test passed"
 else
-    echo "✗ Version test failed: expected version 2025.10.06"
+    echo "✗ Version test failed: expected version 2025.12.15"
     exit 1
 fi
 
@@ -33,7 +33,7 @@ test_file="$PLUGIN_DIR/test/Coincidence.fst"
 echo "Verifying: $test_file"
 
 # Run F* on the test file and capture output
-if proof_output=$(mise exec "fstar@2025.10.06" -- fstar.exe "$test_file" 2>&1); then
+if proof_output=$(mise exec "fstar-stack@2025.12.15-stack.1" -- fstar.exe "$test_file" 2>&1); then
     echo "$proof_output"
     # Check for "Verified" in output (F* prints "Verified module: Coincidence")
     if echo "$proof_output" | grep -q "Verified"; then
@@ -50,7 +50,7 @@ fi
 echo ""
 echo "=== Test 3: Environment variables ==="
 # Verify FSTAR_HOME is set
-fstar_home=$(mise exec "fstar@2025.10.06" -- printenv FSTAR_HOME 2>/dev/null || echo "")
+fstar_home=$(mise exec "fstar-stack@2025.12.15-stack.1" -- printenv FSTAR_HOME 2>/dev/null || echo "")
 if [ -n "$fstar_home" ]; then
     echo "✓ FSTAR_HOME is set: $fstar_home"
 else
@@ -59,8 +59,8 @@ else
 fi
 
 # Verify Z3 is on PATH (z3 binary should be findable)
-if mise exec "fstar@2025.10.06" -- which z3 >/dev/null 2>&1; then
-    z3_path=$(mise exec "fstar@2025.10.06" -- which z3)
+if mise exec "fstar-stack@2025.12.15-stack.1" -- which z3 >/dev/null 2>&1; then
+    z3_path=$(mise exec "fstar-stack@2025.12.15-stack.1" -- which z3)
     echo "✓ Z3 is on PATH: $z3_path"
 else
     echo "✗ Z3 is not on PATH"
