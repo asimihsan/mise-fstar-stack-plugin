@@ -156,6 +156,26 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 			error(err)
 		end
 
+		-- Verify Z3 archive integrity (we download this ourselves, so mise cannot verify it).
+		local expected_z3_sha256 = z3_config.sha256[platform_key]
+		if not expected_z3_sha256 or expected_z3_sha256 == "" then
+			error("No Z3 SHA256 configured for " .. platform_key .. " (update lib/versions.lua)")
+		end
+		local actual_z3_sha256 = shell.sha256_file(z3_zip)
+		if not actual_z3_sha256 then
+			error("Unable to compute SHA256 for downloaded Z3 archive (missing sha256 tool?)")
+		end
+		if actual_z3_sha256 ~= expected_z3_sha256 then
+			error(
+				"Z3 SHA256 mismatch for "
+					.. platform_key
+					.. "\nExpected: "
+					.. expected_z3_sha256
+					.. "\nActual: "
+					.. actual_z3_sha256
+			)
+		end
+
 		-- Extract Z3 to temp location
 		local z3_extract_dir = file.join_path(path, "z3_extract")
 		ok, err = extract_zip(z3_zip, z3_extract_dir, "extract Z3")

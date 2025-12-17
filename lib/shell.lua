@@ -57,5 +57,32 @@ function M.read_stdout(cmd)
 	return (out:gsub("%s+$", ""))
 end
 
-return M
+-- Compute sha256 of a file, returning the lowercase hex digest.
+-- Tries common tools available on macOS/Linux runners.
+function M.sha256_file(path)
+	local quoted = M.quote(path)
 
+	local out = M.read_stdout("shasum -a 256 " .. quoted)
+	if not out or out == "" then
+		out = M.read_stdout("sha256sum " .. quoted)
+	end
+	if not out or out == "" then
+		out = M.read_stdout("openssl dgst -sha256 " .. quoted)
+	end
+	if not out or out == "" then
+		return nil
+	end
+
+	-- shasum/sha256sum format: "<hash>  <file>"
+	local hash = out:match("^(%x+)%s")
+	-- openssl format: "SHA256(<file>)= <hash>"
+	if not hash then
+		hash = out:match("=%s*(%x+)$")
+	end
+	if not hash then
+		return nil
+	end
+	return hash:lower()
+end
+
+return M
