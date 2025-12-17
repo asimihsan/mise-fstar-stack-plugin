@@ -304,8 +304,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local karamel_commit = karamel_config.commit
 		local karamel_repo = karamel_config.repository
 
-		ok, err =
-			run_command("git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir), "git clone karamel")
+		ok, err = run_command(
+			"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir),
+			"git clone karamel"
+		)
 		if not ok then
 			error(err)
 		end
