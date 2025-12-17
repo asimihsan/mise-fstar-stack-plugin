@@ -4,6 +4,7 @@
 local M = {}
 
 local versions = require("lib.versions")
+local shell = require("lib.shell")
 
 -- Prerequisites with platform-specific hints
 M.PREREQUISITES = {
@@ -48,6 +49,14 @@ M.PREREQUISITES = {
 		hint = {
 			darwin = "brew install gmp",
 			linux = "apt install libgmp-dev  # or your package manager",
+		},
+	},
+	{
+		name = "libffi",
+		command = "pkg-config --exists libffi && echo libffi found",
+		hint = {
+			darwin = "brew install libffi",
+			linux = "apt install libffi-dev  # or your package manager",
 		},
 	},
 	{
@@ -209,6 +218,24 @@ function M.get_make_command(os_type)
 		end
 	end
 	return "make"
+end
+
+-- Return an environment prefix string for macOS builds that rely on Homebrew.
+-- This is primarily to make opam "conf-*" packages locate dependencies reliably
+-- on CI runners and fresh machines.
+function M.get_build_env(os_type)
+	if os_type ~= "darwin" then
+		return ""
+	end
+
+	local libffi_prefix = shell.read_stdout("brew --prefix libffi")
+	if not libffi_prefix or libffi_prefix == "" then
+		return ""
+	end
+
+	local pkgconfig_dir = libffi_prefix .. "/lib/pkgconfig"
+
+	return 'PKG_CONFIG_PATH="' .. pkgconfig_dir .. ':${PKG_CONFIG_PATH:-}" '
 end
 
 -- Check architecture consistency on macOS (arm64 vs x86_64)

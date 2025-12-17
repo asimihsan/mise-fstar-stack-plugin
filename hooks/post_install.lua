@@ -134,6 +134,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		-- Paths
 		local opam_root = file.join_path(path, "opam")
 		local opam_prefix = opam_env(opam_root)
+		local deps_env = prerequisites.get_build_env(os_type)
 
 		-- Mise extracts tarball and moves contents of FStar-{version}/ directly to install path
 		-- (it strips the top-level directory, so files are directly at `path`)
@@ -207,7 +208,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 		-- Step 2: Initialize opam
 		print("Step 2/7: Initializing opam...")
-		ok, err = run_command(opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+		ok, err =
+			run_command(deps_env .. opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
 		if not ok then
 			error(err)
 		end
@@ -216,7 +218,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		print("Step 3/7: Creating OCaml switch (this takes several minutes)...")
 		local ocaml_version = ocaml_config.version
 		ok, err = run_command(
-			opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
+			deps_env .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch",
 			"opam switch create"
 		)
 		if not ok then
@@ -226,7 +228,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		-- Step 4: Install F* opam dependencies
 		print("Step 4/7: Installing F* dependencies...")
 		-- Need to set OPAMSWITCH explicitly for nested opam commands
-		local opam_switch_prefix = opam_prefix .. "OPAMSWITCH=default "
+		local opam_switch_prefix = deps_env .. opam_prefix .. "OPAMSWITCH=default "
 		ok, err = run_command(
 			"cd " .. quote(fstar_src) .. " && " .. opam_switch_prefix .. "opam install --deps-only .",
 			"install F* dependencies"
@@ -489,6 +491,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Environment for opam commands
 	local opam_prefix = opam_env(opam_root)
+	local deps_env = prerequisites.get_build_env(os_type)
 
 	-- Get architecture-specific compiler flags for macOS
 	-- This bakes -arch arm64/x86_64 into OCaml's C toolchain configuration
@@ -496,7 +499,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local native_arch = get_native_arch(os_type)
 
 	-- Step 1: Initialize opam (isolated root, no shell setup)
-	local ok, err = run_command(opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
+	local ok, err =
+		run_command(deps_env .. opam_prefix .. "opam init --bare --no-setup --disable-sandboxing", "opam init")
 	if not ok then
 		error(err)
 	end
@@ -504,7 +508,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 1b: Set opam arch variable for macOS (ensures opam knows the target architecture)
 	-- This matches the OCaml community guidance for handling dual-arch situations
 	if native_arch then
-		ok, err = run_command(opam_prefix .. "opam var --global arch=" .. native_arch, "opam var arch")
+		ok, err = run_command(deps_env .. opam_prefix .. "opam var --global arch=" .. native_arch, "opam var arch")
 		if not ok then
 			error(err)
 		end
@@ -514,7 +518,12 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- The key fix for OCaml issue #10374: bake -arch into CC/CFLAGS/LDFLAGS
 	-- so ocamlopt always calls clang with the correct architecture
 	local ocaml_version = ocaml_config.version
-	local switch_cmd = arch_cc_flags .. opam_prefix .. "opam switch create default " .. ocaml_version .. " --no-switch"
+	local switch_cmd = arch_cc_flags
+		.. deps_env
+		.. opam_prefix
+		.. "opam switch create default "
+		.. ocaml_version
+		.. " --no-switch"
 	ok, err = run_command(switch_cmd, "opam switch create")
 	if not ok then
 		error(err)
@@ -523,7 +532,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 3: Install OCaml packages
 	-- Build package install command (let opam solve versions)
 	local packages = table.concat(ocaml_config.packages, " ")
-	ok, err = run_command(opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
+	ok, err =
+		run_command(deps_env .. opam_prefix .. "opam install --switch=default " .. packages, "opam install packages")
 	if not ok then
 		error(err)
 	end
@@ -580,6 +590,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Include arch_cc_flags to ensure krmllib C code is also built for the correct architecture
 	-- (krmllib calls the system C compiler directly, not through OCaml's wrapped compiler)
 	local build_env = arch_cc_flags
+		.. deps_env
 		.. opam_prefix
 		.. "FSTAR_EXE="
 		.. quote(fstar_exe)

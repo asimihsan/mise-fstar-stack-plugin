@@ -49,6 +49,7 @@ jobs:
           brew install \
             gmp \
             gnu-time \
+            libffi \
             make \
             opam \
             pkg-config
@@ -56,4 +57,3 @@ jobs:
       - run: mise run test
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
