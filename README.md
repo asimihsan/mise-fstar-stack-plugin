@@ -55,3 +55,7 @@ The plugin sets:
 - [ ] KaRaMeL build from source
 - [ ] Full prerequisite checking
 - [ ] Multiple stack versions
+
+## License
+
+Mozilla Public License 2.0
