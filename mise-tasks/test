@@ -2,68 +2,39 @@
 #MISE description="Run plugin tests - install and execute tool"
 set -euo pipefail
 
+# Run from repo root.
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
+
+default_version="$(sed -n 's/^M\\.LATEST_STACK = \"\\(.*\\)\"/\\1/p' "$PLUGIN_DIR/lib/versions.lua" | head -n 1)"
+VERSION="${MISE_FSTAR_STACK_TEST_VERSION:-$default_version}"
+
+if [[ -z "${VERSION:-}" ]]; then
+    echo "ERROR: Could not determine stack version to test."
+    echo "Set MISE_FSTAR_STACK_TEST_VERSION or ensure lib/versions.lua defines M.LATEST_STACK."
+    exit 1
+fi
 
 echo "=== Linking plugin for testing ==="
 mise plugin link --force fstar-stack "$PLUGIN_DIR"
 
 echo ""
-echo "=== Installing F* 2025.12.15 ==="
+echo "=== Installing fstar-stack@${VERSION} (includes KaRaMeL by default) ==="
 # Reinstall to test the plugin (--force to reinstall if already installed)
-mise install fstar-stack@2025.12.15-stack.1 --force
+mise install "fstar-stack@${VERSION}" --force
 
 echo ""
-echo "=== Test 1: Version check ==="
-output=$(mise exec "fstar-stack@2025.12.15-stack.1" -- fstar.exe --version)
-echo "fstar output: $output"
-
-if echo "$output" | grep -q '2025.12.15'; then
-    echo "✓ Version test passed"
-else
-    echo "✗ Version test failed: expected version 2025.12.15"
-    exit 1
-fi
+MISE_FSTAR_STACK_TEST_VERSION="$VERSION" mise run verify
 
 echo ""
-echo "=== Test 2: Functional proof verification ==="
-# This tests that F*, Z3, and the standard library (ulib) all work together
-test_file="$PLUGIN_DIR/test/Coincidence.fst"
-echo "Verifying: $test_file"
-
-# Run F* on the test file and capture output
-if proof_output=$(mise exec "fstar-stack@2025.12.15-stack.1" -- fstar.exe "$test_file" 2>&1); then
-    echo "$proof_output"
-    # Check for "Verified" in output (F* prints "Verified module: Coincidence")
-    if echo "$proof_output" | grep -q "Verified"; then
-        echo "✓ Functional test passed (Z3 + ulib working)"
-    else
-        echo "✓ Functional test passed (no errors)"
-    fi
+echo "=== Test 5: KaRaMeL required by default ==="
+mise exec "fstar-stack@${VERSION}" -- Karamel.exe -version
+krml_home="$(mise exec "fstar-stack@${VERSION}" -- printenv KRML_HOME 2>/dev/null || true)"
+if [[ -n "${krml_home:-}" ]]; then
+    echo "✓ KRML_HOME is set: $krml_home"
 else
-    echo "✗ Functional test failed: F* could not verify test file"
-    echo "Output: $proof_output"
-    exit 1
-fi
-
-echo ""
-echo "=== Test 3: Environment variables ==="
-# Verify FSTAR_HOME is set
-fstar_home=$(mise exec "fstar-stack@2025.12.15-stack.1" -- printenv FSTAR_HOME 2>/dev/null || echo "")
-if [ -n "$fstar_home" ]; then
-    echo "✓ FSTAR_HOME is set: $fstar_home"
-else
-    echo "✗ FSTAR_HOME is not set"
-    exit 1
-fi
-
-# Verify Z3 is on PATH (z3 binary should be findable)
-if mise exec "fstar-stack@2025.12.15-stack.1" -- which z3 >/dev/null 2>&1; then
-    z3_path=$(mise exec "fstar-stack@2025.12.15-stack.1" -- which z3)
-    echo "✓ Z3 is on PATH: $z3_path"
-else
-    echo "✗ Z3 is not on PATH"
+    echo "✗ KRML_HOME is not set (KaRaMeL build likely failed)"
     exit 1
 fi
 

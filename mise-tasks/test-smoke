@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#MISE description="Smoke test plugin (skip KaRaMeL build)"
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
+
+default_version="$(sed -n 's/^M\\.LATEST_STACK = \"\\(.*\\)\"/\\1/p' "$PLUGIN_DIR/lib/versions.lua" | head -n 1)"
+VERSION="${MISE_FSTAR_STACK_TEST_VERSION:-$default_version}"
+
+if [[ -z "${VERSION:-}" ]]; then
+    echo "ERROR: Could not determine stack version to test."
+    echo "Set MISE_FSTAR_STACK_TEST_VERSION or ensure lib/versions.lua defines M.LATEST_STACK."
+    exit 1
+fi
+
+echo "=== Linking plugin for testing ==="
+mise plugin link --force fstar-stack "$PLUGIN_DIR"
+
+echo ""
+echo "=== Installing fstar-stack@${VERSION} (skip KaRaMeL) ==="
+MISE_FSTAR_STACK_SKIP_KARAMEL=1 mise install "fstar-stack@${VERSION}" --force
+
+MISE_FSTAR_STACK_TEST_VERSION="$VERSION" mise run verify
+

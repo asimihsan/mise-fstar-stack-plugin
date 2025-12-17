@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+#MISE description="Verify installed fstar-stack toolchain (version + proof)"
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+default_version="$(sed -n 's/^M\\.LATEST_STACK = \"\\(.*\\)\"/\\1/p' "$REPO_DIR/lib/versions.lua" | head -n 1)"
+VERSION="${MISE_FSTAR_STACK_TEST_VERSION:-$default_version}"
+
+if [[ -z "${VERSION:-}" ]]; then
+    echo "ERROR: Could not determine stack version to test."
+    echo "Set MISE_FSTAR_STACK_TEST_VERSION or ensure lib/versions.lua defines M.LATEST_STACK."
+    exit 1
+fi
+
+DATE_PART="${VERSION%%-stack.*}"
+
+echo "=== Verifying fstar-stack@${VERSION} ==="
+
+echo ""
+echo "=== Test 1: Version check ==="
+output="$(mise exec "fstar-stack@${VERSION}" -- fstar.exe --version)"
+echo "fstar output: $output"
+
+if echo "$output" | grep -q "$DATE_PART"; then
+    echo "✓ Version test passed"
+else
+    echo "✗ Version test failed: expected output to contain $DATE_PART"
+    exit 1
+fi
+
+echo ""
+echo "=== Test 2: Functional proof verification ==="
+test_file="$REPO_DIR/test/Coincidence.fst"
+echo "Verifying: $test_file"
+
+if proof_output="$(mise exec "fstar-stack@${VERSION}" -- fstar.exe "$test_file" 2>&1)"; then
+    echo "$proof_output"
+    if echo "$proof_output" | grep -q "Verified"; then
+        echo "✓ Functional test passed (Z3 + ulib working)"
+    else
+        echo "✓ Functional test passed (no errors)"
+    fi
+else
+    echo "✗ Functional test failed: F* could not verify test file"
+    echo "Output: $proof_output"
+    exit 1
+fi
+
+echo ""
+echo "=== Test 3: Environment variables ==="
+fstar_home="$(mise exec "fstar-stack@${VERSION}" -- printenv FSTAR_HOME 2>/dev/null || true)"
+if [[ -n "${fstar_home:-}" ]]; then
+    echo "✓ FSTAR_HOME is set: $fstar_home"
+else
+    echo "✗ FSTAR_HOME is not set"
+    exit 1
+fi
+
+if mise exec "fstar-stack@${VERSION}" -- which z3 >/dev/null 2>&1; then
+    z3_path="$(mise exec "fstar-stack@${VERSION}" -- which z3)"
+    echo "✓ Z3 is on PATH: $z3_path"
+else
+    echo "✗ Z3 is not on PATH"
+    exit 1
+fi
+
+echo ""
+echo "=== Test 4: KaRaMeL (optional) ==="
+if mise exec "fstar-stack@${VERSION}" -- which Karamel.exe >/dev/null 2>&1; then
+    mise exec "fstar-stack@${VERSION}" -- Karamel.exe -version
+    echo "✓ KaRaMeL is on PATH"
+else
+    echo "ℹ️  KaRaMeL not found on PATH (may be skipped or build may have failed)"
+fi
+
+echo ""
+echo "=== Verification PASSED ==="
+

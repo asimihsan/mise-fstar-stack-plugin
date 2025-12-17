@@ -45,7 +45,7 @@ WORKDIR /workspace/proven-pool
 COPY mise.toml mise.lock* ./
 
 # Trust the mise config file (required in non-interactive mode)
-RUN mise trust
+RUN mise trust --yes
 
 # Install fstar-stack (builds KaRaMeL - expensive, cache this layer)
 RUN mise install fstar-stack@2025.12.15-stack.1
@@ -65,6 +65,7 @@ RUN file $(mise where fstar-stack)/karamel/krmllib/dist/generic/libkrmllib.a | g
 COPY . ./
 
 # Run verification (this tests F* works)
+RUN mise trust --yes
 RUN mise run verify
 
 # Note: extract/build/run require F* code to be written for Low* extraction

@@ -51,7 +51,7 @@ RUN echo '[settings]' > mise.toml && \
     echo '' >> mise.toml && \
     echo '[tools]' >> mise.toml && \
     echo 'fstar-stack = "2025.12.15-stack.1"' >> mise.toml && \
-    mise trust
+    mise trust --yes
 
 # Install fstar-stack (SOURCE BUILD - this takes 30-60 minutes!)
 # F* is built from source, then KaRaMeL is built
