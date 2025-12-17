@@ -1,0 +1,59 @@
+name: Integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly (Monday 06:00 UTC) full install/build.
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  full:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - name: Trust mise config
+        run: mise trust --yes
+
+      - name: Install system prerequisites (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            ca-certificates \
+            curl \
+            git \
+            libffi-dev \
+            libgmp-dev \
+            m4 \
+            opam \
+            pkg-config \
+            rsync \
+            time \
+            unzip
+
+      - name: Install system prerequisites (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            gmp \
+            gnu-time \
+            make \
+            opam \
+            pkg-config
+
+      - run: mise run test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
