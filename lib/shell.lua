@@ -35,8 +35,15 @@ function M.run_command(cmd, description)
 	end
 	os.remove(output_file)
 
-	if #output > 500 then
-		output = output:sub(1, 500) .. "\n... (truncated)"
+	-- Include enough context for build tools like opam, but avoid multi-megabyte logs.
+	local max_chars = 8000
+	local head_chars = 2000
+	local tail_chars = max_chars - head_chars
+
+	if #output > max_chars then
+		local head = output:sub(1, head_chars)
+		local tail = output:sub(#output - tail_chars + 1)
+		output = head .. "\n... (truncated) ...\n" .. tail
 	end
 
 	return false, (description or "command") .. " failed:\n" .. output
