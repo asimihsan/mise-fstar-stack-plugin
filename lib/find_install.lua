@@ -3,6 +3,7 @@
 -- Handles varying tarball extraction structures by locating key reference files
 
 local file = require("file")
+local shell = require("lib.shell")
 
 local M = {}
 
@@ -22,7 +23,7 @@ local PREFIXES = {
 
 -- Shell-escape a path for safe use in os.execute() / io.popen()
 function M.quote(path)
-	return "'" .. path:gsub("'", "'\\''") .. "'"
+	return shell.quote(path)
 end
 
 -- Find actual F* root by locating reference markers
@@ -62,7 +63,7 @@ end
 function M.find_with_glob(base_path)
 	-- Use find to locate bin/fstar.exe, limit depth to 3 levels
 	local cmd = "find "
-		.. M.quote(base_path)
+		.. shell.quote(base_path)
 		.. " -maxdepth 4 -type f -name 'fstar.exe' -path '*/bin/fstar.exe' -print -quit 2>/dev/null"
 	local f = io.popen(cmd)
 	if f then
@@ -79,7 +80,7 @@ end
 -- List directory contents for debugging
 function M.list_directory(path)
 	local output_file = os.tmpname()
-	os.execute("ls -la " .. M.quote(path) .. " > " .. M.quote(output_file) .. " 2>&1")
+	os.execute("ls -la " .. shell.quote(path) .. " > " .. shell.quote(output_file) .. " 2>&1")
 	local f = io.open(output_file, "r")
 	local contents = "(unable to list)"
 	if f then
@@ -115,7 +116,7 @@ function M.normalize_structure(install_path, actual_root)
 	end
 
 	-- Remove the now-empty source directory
-	os.execute("rmdir " .. M.quote(actual_root) .. " 2>/dev/null")
+	os.execute("rmdir " .. shell.quote(actual_root) .. " 2>/dev/null")
 
 	return true, nil
 end

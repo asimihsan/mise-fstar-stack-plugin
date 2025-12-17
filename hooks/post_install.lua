@@ -6,58 +6,16 @@ local file = require("file")
 local prerequisites = require("lib.prerequisites")
 local versions = require("lib.versions")
 local find_install = require("lib.find_install")
+local platform = require("lib.platform")
+local shell = require("lib.shell")
 
--- Shell-escape a path for safe use in os.execute()
-local function quote(path)
-	return "'" .. path:gsub("'", "'\\''") .. "'"
-end
-
--- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values)
-local function exec_succeeded(result)
-	return result == true or result == 0
-end
-
--- Run a command and return success/failure with captured output on failure
-local function run_command(cmd, description)
-	-- Create temp file for output capture
-	local output_file = os.tmpname()
-	-- Wrap entire command in parentheses so redirect captures all output
-	-- (including compound commands like "cd x && git y")
-	local full_cmd = "(" .. cmd .. ") > " .. quote(output_file) .. " 2>&1"
-	local result = os.execute(full_cmd)
-
-	if exec_succeeded(result) then
-		os.remove(output_file)
-		return true, nil
-	end
-
-	-- Read output for error message
-	local f = io.open(output_file, "r")
-	local output = ""
-	if f then
-		output = f:read("*a") or ""
-		f:close()
-	end
-	os.remove(output_file)
-
-	-- Truncate long output
-	if #output > 500 then
-		output = output:sub(1, 500) .. "\n... (truncated)"
-	end
-
-	return false, description .. " failed:\n" .. output
-end
+local quote = shell.quote
+local exec_succeeded = shell.exec_succeeded
+local run_command = shell.run_command
 
 -- Build environment string for opam commands
 local function opam_env(opam_root)
 	return "OPAMROOT=" .. quote(opam_root) .. " OPAMYES=1 OPAMCOLOR=never "
-end
-
--- Get platform key from runtime
-local function get_platform_key()
-	local os_type = RUNTIME.osType -- luacheck: ignore
-	local arch_type = RUNTIME.archType -- luacheck: ignore
-	return os_type .. "_" .. arch_type
 end
 
 -- Download a file using curl
@@ -148,7 +106,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Check if this platform requires building F* from source
-	local platform_key = get_platform_key()
+	local platform_key = platform.platform_key()
 	local is_source_build = versions.needs_fstar_source_build(platform_key)
 
 	-- For source builds, we need to build F* before verification
@@ -326,10 +284,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local karamel_commit = karamel_config.commit
 		local karamel_repo = karamel_config.repository
 
-		ok, err = run_command(
-			"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir),
-			"git clone karamel"
-		)
+		ok, err =
+			run_command("git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir), "git clone karamel")
 		if not ok then
 			error(err)
 		end
