@@ -67,7 +67,10 @@ function M.run_command(cmd, description)
 		-- On Windows, Lua's os.execute() uses cmd.exe, which does not understand
 		-- POSIX quoting or /dev/null. We run our payload in bash (Git Bash,
 		-- MSYS2, or Cygwin), and keep redirection in cmd.exe.
-		local bash_payload = escape_cmd_double_quotes(cmd)
+		-- MSYS2 provides toolchain binaries under /mingw64/bin. When running `bash -c`
+		-- non-interactively (and especially from cmd.exe), PATH can be missing these,
+		-- so we defensively prepend it.
+		local bash_payload = escape_cmd_double_quotes("export PATH=/mingw64/bin:/usr/bin:$PATH; " .. cmd)
 		-- Avoid `-l` (login shell) because it can reset PATH and hide MSYS2/MINGW tools.
 		full_cmd = 'bash -c "' .. bash_payload .. '" > ' .. quote_cmd(output_file) .. " 2>&1"
 	else
@@ -108,7 +111,9 @@ function M.read_stdout(cmd)
 	local full_cmd
 	if is_windows() then
 		-- Avoid `-l` for the same reason as run_command() above.
-		full_cmd = 'bash -c "' .. escape_cmd_double_quotes(cmd .. " 2>/dev/null") .. '"'
+		full_cmd = 'bash -c "'
+			.. escape_cmd_double_quotes("export PATH=/mingw64/bin:/usr/bin:$PATH; " .. cmd .. " 2>/dev/null")
+			.. '"'
 	else
 		full_cmd = cmd .. " 2>/dev/null"
 	end
