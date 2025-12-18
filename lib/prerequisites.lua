@@ -49,7 +49,9 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "pkg-config",
-		command = "pkg-config --version",
+		-- On Windows/MSYS2 the binary is often pkgconf (with pkg-config as an alias),
+		-- so accept either.
+		command = "pkg-config --version 2>/dev/null || pkgconf --version",
 		hint = {
 			windows = "Install pkg-config via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-pkgconf)",
 			darwin = "brew install pkg-config",
@@ -58,7 +60,7 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "gmp",
-		command = "pkg-config --exists gmp && echo gmp found",
+		command = "(pkg-config --exists gmp 2>/dev/null || pkgconf --exists gmp 2>/dev/null) && echo gmp found",
 		hint = {
 			windows = "Install gmp via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-gmp)",
 			darwin = "brew install gmp",
@@ -67,7 +69,7 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "libffi",
-		command = "pkg-config --exists libffi && echo libffi found",
+		command = "(pkg-config --exists libffi 2>/dev/null || pkgconf --exists libffi 2>/dev/null) && echo libffi found",
 		hint = {
 			windows = "Install libffi via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-libffi)",
 			darwin = "brew install libffi",
@@ -87,7 +89,8 @@ M.PREREQUISITES = {
 		name = "gtime",
 		-- GNU time is required by KaRaMeL's krmllib build on macOS
 		-- On Linux, /usr/bin/time works fine (use -v to test, not --version)
-		command = "gtime --version 2>/dev/null || /usr/bin/time -v true 2>/dev/null",
+		-- On Windows, accept either /usr/bin/time (MSYS2/Cygwin) or the shell keyword `time`.
+		command = "gtime --version 2>/dev/null || /usr/bin/time -v true 2>/dev/null || /usr/bin/time true 2>/dev/null || time true 2>/dev/null",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
 		hint = {
 			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
