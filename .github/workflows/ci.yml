@@ -16,8 +16,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +58,14 @@ jobs:
             opam \
             pkg-config
 
-      - run: mise run ci
+      - name: Run CI (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: mise run ci
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run smoke test (Windows)
+        if: runner.os == 'Windows'
+        run: mise run test-smoke
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

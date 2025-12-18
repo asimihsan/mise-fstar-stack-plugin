@@ -97,14 +97,6 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
 
-	if os_type == "windows" then
-		error(
-			"Windows is not yet supported.\n"
-				.. "The plugin uses Unix shell commands (chmod, xattr).\n"
-				.. "Please install F* manually from: https://github.com/FStarLang/FStar/releases"
-		)
-	end
-
 	-- Check if this platform requires building F* from source
 	local platform_key = platform.platform_key()
 	local is_source_build = versions.needs_fstar_source_build(platform_key)
@@ -427,8 +419,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Set executable permissions
-	os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
-	os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+	if os_type ~= "windows" then
+		os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
+		os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+	end
 
 	-- Step 3: Verify F* installation
 	print("Step 3/5: Verifying F* installation...")
@@ -440,7 +434,13 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		error("F* installation incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
 	end
 
-	local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
+	local test_cmd
+	if os_type == "windows" then
+		test_cmd = '"' .. fstar_exe .. '" --version > NUL 2>&1'
+	else
+		test_cmd = quote(fstar_exe) .. " --version > /dev/null 2>&1"
+	end
+	local test_result = os.execute(test_cmd)
 	if not exec_succeeded(test_result) then
 		error("F* binary verification failed")
 	end
@@ -455,6 +455,12 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		print("Step 4/5: Skipping KaRaMeL build (MISE_FSTAR_STACK_SKIP_KARAMEL=1)")
 		print("Step 5/5: Installation complete (F* only)")
 		return -- F* only installation
+	end
+
+	if os_type == "windows" then
+		print("Step 4/5: Skipping KaRaMeL build (Windows not yet supported)")
+		print("Step 5/5: Installation complete (F* only)")
+		return -- Windows: F* only for now
 	end
 
 	-- Step 4: Build KaRaMeL

@@ -7,6 +7,40 @@ local shell = require("lib.shell")
 
 local M = {}
 
+local function is_windows()
+	return (RUNTIME and RUNTIME.osType) == "windows" -- luacheck: ignore
+end
+
+local function ps_escape_single_quoted(value)
+	-- PowerShell single-quoted string literal escaping: '' represents a literal '.
+	return tostring(value):gsub("'", "''")
+end
+
+local function ps_quote_single_quoted(value)
+	return "'" .. ps_escape_single_quoted(value) .. "'"
+end
+
+local function powershell_command(script)
+	-- Wrap the -Command payload in double quotes for cmd.exe, and avoid using
+	-- any double quotes in the script (or escape them).
+	local escaped = tostring(script):gsub('"', '\\"')
+	return 'powershell -NoProfile -ExecutionPolicy Bypass -Command "' .. escaped .. '"'
+end
+
+local function read_powershell_stdout(script)
+	local cmd = powershell_command(script)
+	local f = io.popen(cmd)
+	if not f then
+		return nil
+	end
+	local out = f:read("*a")
+	f:close()
+	if not out then
+		return nil
+	end
+	return (out:gsub("%s+$", ""))
+end
+
 -- Reference markers to identify F* installation root (ordered by reliability)
 -- We look for these files/directories to determine where F* is actually installed
 local MARKERS = {
@@ -61,6 +95,24 @@ end
 -- Find F* root using shell find command (fallback for unusual structures)
 -- Searches for bin/fstar.exe up to 3 levels deep
 function M.find_with_glob(base_path)
+	if is_windows() then
+		-- Use PowerShell to locate bin\\fstar.exe anywhere under the extracted tree.
+		-- We prefer fstar.exe because it is always present in binary distributions.
+		local script = "$base = "
+			.. ps_quote_single_quoted(base_path)
+			.. "; "
+			.. "$match = Get-ChildItem -LiteralPath $base -Recurse -File -Filter fstar.exe -ErrorAction SilentlyContinue "
+			.. "| Where-Object { $_.FullName -match '\\\\bin\\\\fstar\\.exe$' } "
+			.. "| Select-Object -First 1 -ExpandProperty FullName; "
+			.. "if ($match) { Split-Path -Parent (Split-Path -Parent $match) }"
+
+		local result = read_powershell_stdout(script)
+		if result and result ~= "" then
+			return result
+		end
+		return nil
+	end
+
 	-- Use find to locate bin/fstar.exe, limit depth to 3 levels
 	local cmd = "find "
 		.. shell.quote(base_path)
@@ -79,6 +131,15 @@ end
 
 -- List directory contents for debugging
 function M.list_directory(path)
+	if is_windows() then
+		local script = "$p = "
+			.. ps_quote_single_quoted(path)
+			.. "; "
+			.. "Get-ChildItem -LiteralPath $p -Force -ErrorAction SilentlyContinue "
+			.. "| ForEach-Object { $_.Mode + ' ' + $_.Length + ' ' + $_.Name }"
+		return read_powershell_stdout(script) or "(unable to list)"
+	end
+
 	local output_file = os.tmpname()
 	os.execute("ls -la " .. shell.quote(path) .. " > " .. shell.quote(output_file) .. " 2>&1")
 	local f = io.open(output_file, "r")
@@ -97,6 +158,25 @@ end
 function M.normalize_structure(install_path, actual_root)
 	if actual_root == install_path then
 		return true, nil -- Already normalized
+	end
+
+	if is_windows() then
+		local script = "$src = "
+			.. ps_quote_single_quoted(actual_root)
+			.. "; "
+			.. "$dst = "
+			.. ps_quote_single_quoted(install_path)
+			.. "; "
+			.. "Get-ChildItem -LiteralPath $src -Force -ErrorAction Stop "
+			.. "| ForEach-Object { Move-Item -LiteralPath $_.FullName -Destination $dst -Force }; "
+			.. "Remove-Item -LiteralPath $src -Force -Recurse -ErrorAction SilentlyContinue"
+		read_powershell_stdout(script)
+
+		local fstar_exe = file.join_path(install_path, "bin", "fstar.exe")
+		if not file.exists(fstar_exe) then
+			return false, "Move completed but bin/fstar.exe not found at expected location (Windows)."
+		end
+		return true, nil
 	end
 
 	-- Move all contents from actual_root to install_path
