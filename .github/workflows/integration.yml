@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
+        with:
+          install: false
 
       - name: Trust mise config
         run: mise trust --yes
@@ -70,6 +72,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
+        with:
+          install: false
 
       - name: Trust mise config
         run: mise trust --yes
@@ -88,6 +92,13 @@ jobs:
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-gmp
             mingw-w64-x86_64-libffi
+
+      - name: Add MSYS2 to PATH (Windows)
+        shell: pwsh
+        run: |
+          # Ensure mise's Lua hooks (which run via cmd.exe) can find bash/pkg-config/time, etc.
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\\msys64\\usr\\bin"
+          Add-Content -Path $env:GITHUB_PATH -Value "C:\\msys64\\mingw64\\bin"
 
       - name: Install OPAM (Windows)
         shell: pwsh
