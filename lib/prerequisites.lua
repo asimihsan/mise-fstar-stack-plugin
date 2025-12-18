@@ -9,9 +9,19 @@ local shell = require("lib.shell")
 -- Prerequisites with platform-specific hints
 M.PREREQUISITES = {
 	{
+		name = "bash",
+		command = "bash --version",
+		hint = {
+			windows = "Install Git for Windows (includes bash) or MSYS2/Cygwin",
+			darwin = "bash is included with macOS",
+			linux = "bash is included with most Linux distributions",
+		},
+	},
+	{
 		name = "opam",
 		command = "opam --version",
 		hint = {
+			windows = "winget install OCaml.opam  # or use ocaml/setup-ocaml in CI",
 			darwin = "brew install opam",
 			linux = "See https://opam.ocaml.org/doc/Install.html",
 		},
@@ -20,6 +30,7 @@ M.PREREQUISITES = {
 		name = "git",
 		command = "git --version",
 		hint = {
+			windows = "Install Git for Windows",
 			darwin = "xcode-select --install",
 			linux = "apt install git  # or your package manager",
 		},
@@ -31,6 +42,7 @@ M.PREREQUISITES = {
 		command = "gmake --version 2>/dev/null || make --version",
 		darwin_check = "gmake --version", -- macOS requires gmake specifically
 		hint = {
+			windows = "Install GNU make via MSYS2/Cygwin (e.g., pacman -S make)",
 			darwin = "brew install make  # provides gmake (GNU make required)",
 			linux = "apt install make  # or your package manager",
 		},
@@ -39,6 +51,7 @@ M.PREREQUISITES = {
 		name = "pkg-config",
 		command = "pkg-config --version",
 		hint = {
+			windows = "Install pkg-config via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-pkgconf)",
 			darwin = "brew install pkg-config",
 			linux = "apt install pkg-config  # or your package manager",
 		},
@@ -47,6 +60,7 @@ M.PREREQUISITES = {
 		name = "gmp",
 		command = "pkg-config --exists gmp && echo gmp found",
 		hint = {
+			windows = "Install gmp via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-gmp)",
 			darwin = "brew install gmp",
 			linux = "apt install libgmp-dev  # or your package manager",
 		},
@@ -55,6 +69,7 @@ M.PREREQUISITES = {
 		name = "libffi",
 		command = "pkg-config --exists libffi && echo libffi found",
 		hint = {
+			windows = "Install libffi via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-libffi)",
 			darwin = "brew install libffi",
 			linux = "apt install libffi-dev  # or your package manager",
 		},
@@ -63,6 +78,7 @@ M.PREREQUISITES = {
 		name = "C compiler",
 		command = "cc --version 2>/dev/null || gcc --version 2>/dev/null || clang --version",
 		hint = {
+			windows = "Install a MinGW toolchain via MSYS2/Cygwin (gcc) or Visual Studio (cl)",
 			darwin = "xcode-select --install",
 			linux = "apt install build-essential  # or your package manager",
 		},
@@ -74,6 +90,7 @@ M.PREREQUISITES = {
 		command = "gtime --version 2>/dev/null || /usr/bin/time -v true 2>/dev/null",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
 		hint = {
+			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
 			darwin = "brew install gnu-time  # provides gtime",
 			linux = "apt install time  # or your package manager",
 		},
@@ -119,9 +136,8 @@ function M.check_prerequisite(prereq, os_type)
 		check_cmd = prereq.darwin_check
 	end
 
-	-- Wrap command in parentheses to capture all output from compound commands
-	local result = os.execute("(" .. check_cmd .. ") > /dev/null 2>&1")
-	if exec_succeeded(result) then
+	local ok = shell.run_command(check_cmd, "check " .. prereq.name)
+	if ok then
 		return true, nil
 	end
 

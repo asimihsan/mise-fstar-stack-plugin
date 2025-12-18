@@ -28,28 +28,14 @@ echo ""
 FSTAR_STACK_TEST_VERSION="$VERSION" mise run verify
 
 echo ""
-is_windows=0
-if [[ "${OS:-}" == "Windows_NT" ]]; then
-    is_windows=1
-fi
-case "$(uname -s 2>/dev/null || true)" in
-    MINGW*|MSYS*|CYGWIN*)
-        is_windows=1
-        ;;
-esac
-
-if [[ "$is_windows" -eq 1 ]]; then
-    echo "=== Test 5: KaRaMeL required by default (skipped on Windows) ==="
+echo "=== Test 5: KaRaMeL required by default ==="
+mise exec "fstar-stack@${VERSION}" -- Karamel.exe -version
+krml_home="$(mise exec "fstar-stack@${VERSION}" -- printenv KRML_HOME 2>/dev/null || true)"
+if [[ -n "${krml_home:-}" ]]; then
+    echo "✓ KRML_HOME is set: $krml_home"
 else
-    echo "=== Test 5: KaRaMeL required by default ==="
-    mise exec "fstar-stack@${VERSION}" -- Karamel.exe -version
-    krml_home="$(mise exec "fstar-stack@${VERSION}" -- printenv KRML_HOME 2>/dev/null || true)"
-    if [[ -n "${krml_home:-}" ]]; then
-        echo "✓ KRML_HOME is set: $krml_home"
-    else
-        echo "✗ KRML_HOME is not set (KaRaMeL build likely failed)"
-        exit 1
-    fi
+    echo "✗ KRML_HOME is not set (KaRaMeL build likely failed)"
+    exit 1
 fi
 
 echo ""

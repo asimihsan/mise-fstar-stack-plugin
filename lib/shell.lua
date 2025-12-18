@@ -4,9 +4,37 @@
 
 local M = {}
 
+local function is_windows()
+	return (RUNTIME and RUNTIME.osType) == "windows" -- luacheck: ignore
+end
+
 -- Shell-escape a string for safe use in os.execute()/io.popen().
 function M.quote(value)
 	return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
+end
+
+-- Quote a string for cmd.exe (double quotes).
+-- Note: we keep this minimal; most paths should not contain quotes.
+local function quote_cmd(value)
+	return '"' .. tostring(value):gsub('"', '""') .. '"'
+end
+
+-- Escape a string for inclusion in a cmd.exe double-quoted argument.
+-- This is primarily used to pass a bash -lc "<cmd>" payload on Windows.
+local function escape_cmd_double_quotes(value)
+	-- cmd.exe uses " to delimit arguments; escape by backslash for bash.
+	-- We avoid introducing double quotes in our bash payload where possible,
+	-- but still defensively escape them.
+	return tostring(value):gsub('"', '\\"')
+end
+
+-- Convert Windows paths to a form understood by Unix-y shells on Windows.
+-- Cygwin/MSYS generally accept "C:/path/to/dir" reliably (forward slashes).
+function M.to_mixed_path(path)
+	if not is_windows() then
+		return path
+	end
+	return tostring(path):gsub("\\", "/")
 end
 
 -- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values).
@@ -14,12 +42,36 @@ function M.exec_succeeded(result)
 	return result == true or result == 0
 end
 
+-- Check if a command exists in PATH.
+function M.command_exists(cmd_name)
+	if not cmd_name or cmd_name == "" then
+		return false
+	end
+
+	if is_windows() then
+		local result = os.execute("where.exe " .. cmd_name .. " > NUL 2>&1")
+		return M.exec_succeeded(result)
+	end
+
+	local result = os.execute("command -v " .. M.quote(cmd_name) .. " >/dev/null 2>&1")
+	return M.exec_succeeded(result)
+end
+
 -- Run a command and return success/failure with captured output on failure.
 --
 -- Returns: ok (boolean), err (string|nil)
 function M.run_command(cmd, description)
 	local output_file = os.tmpname()
-	local full_cmd = "(" .. cmd .. ") > " .. M.quote(output_file) .. " 2>&1"
+	local full_cmd
+	if is_windows() then
+		-- On Windows, Lua's os.execute() uses cmd.exe, which does not understand
+		-- POSIX quoting or /dev/null. We run our payload in bash (Git Bash,
+		-- MSYS2, or Cygwin), and keep redirection in cmd.exe.
+		local bash_payload = escape_cmd_double_quotes(cmd)
+		full_cmd = 'bash -lc "' .. bash_payload .. '" > ' .. quote_cmd(output_file) .. " 2>&1"
+	else
+		full_cmd = "(" .. cmd .. ") > " .. M.quote(output_file) .. " 2>&1"
+	end
 	local result = os.execute(full_cmd)
 
 	if M.exec_succeeded(result) then
@@ -52,7 +104,14 @@ end
 -- Run a command and return its stdout (or nil on failure).
 -- Note: stderr is redirected to /dev/null.
 function M.read_stdout(cmd)
-	local f = io.popen(cmd .. " 2>/dev/null")
+	local full_cmd
+	if is_windows() then
+		full_cmd = 'bash -lc "' .. escape_cmd_double_quotes(cmd .. " 2>/dev/null") .. '"'
+	else
+		full_cmd = cmd .. " 2>/dev/null"
+	end
+
+	local f = io.popen(full_cmd)
 	if not f then
 		return nil
 	end
