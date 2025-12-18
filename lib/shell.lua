@@ -68,7 +68,8 @@ function M.run_command(cmd, description)
 		-- POSIX quoting or /dev/null. We run our payload in bash (Git Bash,
 		-- MSYS2, or Cygwin), and keep redirection in cmd.exe.
 		local bash_payload = escape_cmd_double_quotes(cmd)
-		full_cmd = 'bash -lc "' .. bash_payload .. '" > ' .. quote_cmd(output_file) .. " 2>&1"
+		-- Avoid `-l` (login shell) because it can reset PATH and hide MSYS2/MINGW tools.
+		full_cmd = 'bash -c "' .. bash_payload .. '" > ' .. quote_cmd(output_file) .. " 2>&1"
 	else
 		full_cmd = "(" .. cmd .. ") > " .. M.quote(output_file) .. " 2>&1"
 	end
@@ -106,7 +107,8 @@ end
 function M.read_stdout(cmd)
 	local full_cmd
 	if is_windows() then
-		full_cmd = 'bash -lc "' .. escape_cmd_double_quotes(cmd .. " 2>/dev/null") .. '"'
+		-- Avoid `-l` for the same reason as run_command() above.
+		full_cmd = 'bash -c "' .. escape_cmd_double_quotes(cmd .. " 2>/dev/null") .. '"'
 	else
 		full_cmd = cmd .. " 2>/dev/null"
 	end
