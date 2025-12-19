@@ -25,17 +25,40 @@ local function windows_inline_shell_args()
 	return args
 end
 
+local function normalize_windows_path_list(path_value)
+	if not is_windows() then
+		return path_value
+	end
+	if not path_value or path_value == "" then
+		return ""
+	end
+	if not path_value:find(";") then
+		return path_value
+	end
+	local parts = {}
+	for part in path_value:gmatch("[^;]+") do
+		local p = part:gsub("\\", "/")
+		local drive, rest = p:match("^([A-Za-z]):/(.*)")
+		if drive then
+			p = "/" .. drive:lower() .. "/" .. rest
+		end
+		table.insert(parts, p)
+	end
+	return table.concat(parts, ":")
+end
+
 local function wrap_windows_command(command)
 	local shell_args = windows_inline_shell_args()
 	if not shell_args then
 		return command
 	end
-	local env_path = os.getenv("PATH") or ""
-	local function escape_double_quotes(value)
-		return tostring(value):gsub("\\", "\\\\"):gsub('"', '\\"')
+	local env_path = normalize_windows_path_list(os.getenv("PATH") or "")
+	local injected = "export PATH=" .. M.quote(env_path) .. "; " .. command
+	local function quote_for_cmd(arg)
+		local escaped = tostring(arg):gsub('"', '\\"')
+		return '"' .. escaped .. '"'
 	end
-	local injected = 'export PATH="' .. escape_double_quotes(env_path) .. '"; ' .. command
-	return shell_args .. " " .. M.quote(injected)
+	return shell_args .. " " .. quote_for_cmd(injected)
 end
 
 -- Shell-escape a string for safe use in shell commands.
