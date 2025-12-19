@@ -29,6 +29,17 @@ jobs:
       - name: Trust mise config
         run: mise trust --yes
 
+      - name: Export mise paths (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $miseRoot = Join-Path $env:LOCALAPPDATA "mise"
+          if (-not (Test-Path $miseRoot)) {
+            Write-Error "mise directory not found at $miseRoot"
+            exit 1
+          }
+          "MISE_WIN_DIR=$miseRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Install system prerequisites (Ubuntu)
         if: runner.os == 'Linux'
         run: |
@@ -124,6 +135,11 @@ jobs:
         run: |
           set -euxo pipefail
 
+          if [ -n "${MISE_WIN_DIR:-}" ]; then
+            MISE_WIN_DIR_POSIX="$(cygpath -u "$MISE_WIN_DIR")"
+            export PATH="$MISE_WIN_DIR_POSIX/shims:$MISE_WIN_DIR_POSIX/bin:$PATH"
+          fi
+
           if [ -n "${OPAM_WIN_DIR:-}" ]; then
             export PATH="$(cygpath -u "$OPAM_WIN_DIR"):$PATH"
           fi
@@ -140,6 +156,7 @@ jobs:
           type -a gcc || true
           type -a make || true
           type -a opam || true
+          type -a mise || true
 
           echo "=== pkg-config sanity ==="
           pkg-config --version || true
@@ -200,6 +217,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euxo pipefail
+          if [ -n "${MISE_WIN_DIR:-}" ]; then
+            MISE_WIN_DIR_POSIX="$(cygpath -u "$MISE_WIN_DIR")"
+            export PATH="$MISE_WIN_DIR_POSIX/shims:$MISE_WIN_DIR_POSIX/bin:$PATH"
+          fi
           if [ -n "${OPAM_WIN_DIR:-}" ]; then
             export PATH="$(cygpath -u "$OPAM_WIN_DIR"):$PATH"
           fi
