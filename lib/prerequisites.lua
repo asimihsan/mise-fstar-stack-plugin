@@ -39,7 +39,7 @@ M.PREREQUISITES = {
 		name = "gmake",
 		-- On macOS, GNU make (gmake) is required - BSD make won't work
 		-- On Linux, make is typically GNU make
-		command = "gmake --version 2>/dev/null || make --version",
+		command = "gmake --version || make --version",
 		darwin_check = "gmake --version", -- macOS requires gmake specifically
 		hint = {
 			windows = "Install GNU make via MSYS2/Cygwin (e.g., pacman -S make)",
@@ -51,7 +51,7 @@ M.PREREQUISITES = {
 		name = "pkg-config",
 		-- On Windows/MSYS2 the binary is often pkgconf (with pkg-config as an alias),
 		-- so accept either.
-		command = "pkg-config --version 2>/dev/null || pkgconf --version",
+		command = "pkg-config --version || pkgconf --version",
 		hint = {
 			windows = "Install pkg-config via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-pkgconf)",
 			darwin = "brew install pkg-config",
@@ -60,7 +60,7 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "gmp",
-		command = "(pkg-config --exists gmp 2>/dev/null || pkgconf --exists gmp 2>/dev/null) && echo gmp found",
+		command = "(pkg-config --exists gmp || pkgconf --exists gmp) && echo gmp found",
 		hint = {
 			windows = "Install gmp via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-gmp)",
 			darwin = "brew install gmp",
@@ -69,7 +69,7 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "libffi",
-		command = "(pkg-config --exists libffi 2>/dev/null || pkgconf --exists libffi 2>/dev/null) && echo libffi found",
+		command = "(pkg-config --exists libffi || pkgconf --exists libffi) && echo libffi found",
 		hint = {
 			windows = "Install libffi via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-libffi)",
 			darwin = "brew install libffi",
@@ -78,7 +78,7 @@ M.PREREQUISITES = {
 	},
 	{
 		name = "C compiler",
-		command = "cc --version 2>/dev/null || gcc --version 2>/dev/null || clang --version",
+		command = "cc --version || gcc --version || clang --version",
 		hint = {
 			windows = "Install a MinGW toolchain via MSYS2/Cygwin (gcc) or Visual Studio (cl)",
 			darwin = "xcode-select --install",
@@ -90,7 +90,7 @@ M.PREREQUISITES = {
 		-- GNU time is required by KaRaMeL's krmllib build on macOS
 		-- On Linux, /usr/bin/time works fine (use -v to test, not --version)
 		-- On Windows, accept either /usr/bin/time (MSYS2/Cygwin) or the shell keyword `time`.
-		command = "gtime --version 2>/dev/null || /usr/bin/time -v true 2>/dev/null || /usr/bin/time true 2>/dev/null || time true 2>/dev/null",
+		command = "gtime --version || /usr/bin/time -v true || /usr/bin/time true || time true",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
 		hint = {
 			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
@@ -125,11 +125,6 @@ M.SOURCE_BUILD_PREREQUISITES = {
 	},
 }
 
--- Check if os.execute succeeded (handles both Lua 5.1 and 5.2+ return values)
-local function exec_succeeded(result)
-	return result == true or result == 0
-end
-
 -- Check if a single prerequisite is available
 -- Returns true if available, false and error message if not
 function M.check_prerequisite(prereq, os_type)
@@ -139,14 +134,20 @@ function M.check_prerequisite(prereq, os_type)
 		check_cmd = prereq.darwin_check
 	end
 
-	local ok = shell.run_command(check_cmd, "check " .. prereq.name)
+	local ok, err = shell.run_command(check_cmd, prereq.name .. " check")
 	if ok then
 		return true, nil
 	end
 
 	-- Build helpful error message
 	local hint = prereq.hint[os_type] or prereq.hint.linux or "Install " .. prereq.name
-	return false, "Missing prerequisite: " .. prereq.name .. "\n  Install with: " .. hint
+	return false,
+		"Missing prerequisite: "
+			.. prereq.name
+			.. "\n  Install with: "
+			.. hint
+			.. "\n\n  Check error:\n"
+			.. (err or "unknown error")
 end
 
 -- Check all prerequisites and return list of missing ones
@@ -231,8 +232,7 @@ end
 function M.get_make_command(os_type)
 	if os_type == "darwin" then
 		-- Prefer gmake on macOS for GNU make compatibility
-		local result = os.execute("which gmake > /dev/null 2>&1")
-		if exec_succeeded(result) then
+		if shell.command_exists("gmake") then
 			return "gmake"
 		end
 	end

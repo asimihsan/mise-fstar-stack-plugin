@@ -71,6 +71,10 @@ jobs:
     env:
       MSYSTEM: MINGW64
       CHERE_INVOKING: 1
+      MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: 'C:\msys64\usr\bin\bash.exe -lc'
+      MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS: 'C:\msys64\usr\bin\bash.exe --norc -eo pipefail -o igncr'
+      MISE_USE_FILE_SHELL_FOR_EXECUTABLE_TASKS: "true"
+      PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
     steps:
       - uses: actions/checkout@v4
 
@@ -87,22 +91,47 @@ jobs:
           msystem: MINGW64
           update: true
           install: >-
-            make
+            git
+            diffutils
+            patch
             rsync
             time
             unzip
-            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-make
             mingw-w64-x86_64-pkgconf
             mingw-w64-x86_64-gmp
             mingw-w64-x86_64-libffi
 
-      - name: Add MSYS2 to PATH (Windows)
-        shell: pwsh
+      - name: Preflight - what does the environment actually see?
+        shell: msys2 {0}
         run: |
-          # Ensure mise's Lua hooks (which run via cmd.exe) can find bash/make/pkg-config/gcc/time, etc.
-          # Use GITHUB_ENV so it applies to both bash and cmd.exe subprocesses.
-          $prepend = "C:\\msys64\\usr\\bin;C:\\msys64\\mingw64\\bin"
-          "PATH=$prepend;$env:Path" | Out-File -FilePath $env:GITHUB_ENV -Append
+          set -euxo pipefail
+
+          echo "=== Shell identity ==="
+          echo "SHELL=$SHELL"
+          echo "MSYSTEM=$MSYSTEM"
+          echo "PATH=$PATH"
+          type -a bash || true
+
+          echo "=== Tool resolution (bash) ==="
+          type -a pkg-config || true
+          type -a pkgconf || true
+          type -a gcc || true
+          type -a make || true
+
+          echo "=== pkg-config sanity ==="
+          pkg-config --version || true
+          pkg-config --variable pc_path pkg-config || true
+
+          echo "=== pkg-config probes ==="
+          pkg-config --exists gmp && echo "gmp: ok" || (echo "gmp: FAIL"; pkg-config --print-errors --exists gmp || true)
+          pkg-config --exists libffi && echo "libffi: ok" || (echo "libffi: FAIL"; pkg-config --print-errors --exists libffi || true)
+
+          echo "=== cmd.exe resolution (what Lua os.execute would hit) ==="
+          cmd.exe /c "where bash" || true
+          cmd.exe /c "where pkg-config" || true
+          cmd.exe /c "where pkgconf" || true
 
       - name: Install OPAM (Windows)
         shell: pwsh
@@ -126,5 +155,6 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $opamDir
 
       - run: mise run test
+        shell: msys2 {0}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

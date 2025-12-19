@@ -73,6 +73,33 @@ local function get_arch_cc_flags(os_type)
 	return ""
 end
 
+local function debug_shell_env()
+	if os.getenv("MISE_FSTAR_STACK_DEBUG") ~= "1" then
+		return
+	end
+
+	local cmd = require("cmd")
+
+	local function run_debug(command)
+		local ok, out = pcall(cmd.exec, command)
+		if ok then
+			if out and out ~= "" then
+				print(out)
+			end
+		else
+			print(tostring(out))
+		end
+	end
+
+	print("=== MISE_FSTAR_STACK_DEBUG ===")
+	run_debug("echo MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS=$MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS")
+	run_debug("echo SHELL=$SHELL")
+	run_debug("command -v pkg-config || true")
+	run_debug("pkg-config --version || true")
+	run_debug("pkg-config --print-errors --exists gmp && echo gmp_ok || echo gmp_missing")
+	run_debug("pkg-config --print-errors --exists libffi && echo libffi_ok || echo libffi_missing")
+end
+
 function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Defensive checks for context structure
 	if not ctx then
@@ -116,6 +143,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local karamel_config = stack_config.karamel
 
 		-- Check prerequisites before doing any work
+		debug_shell_env()
 		local prereq_err = prerequisites.check_all_prerequisites(os_type)
 		if prereq_err then
 			error(prereq_err)
@@ -471,6 +499,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local ocaml_config = stack_config.ocaml
 
 	-- Check prerequisites before doing any work
+	debug_shell_env()
 	local prereq_err = prerequisites.check_all_prerequisites(os_type)
 	if prereq_err then
 		error(prereq_err)
