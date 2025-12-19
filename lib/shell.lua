@@ -94,7 +94,11 @@ end
 -- Returns: ok (boolean), err (string|nil)
 function M.run_command(command, description, opts)
 	opts = opts or {}
-	local ok, out = pcall(cmd.exec, wrap_windows_command(command), opts)
+	local wrapped = wrap_windows_command(command)
+	if os.getenv("MISE_FSTAR_STACK_DEBUG") == "1" then
+		io.stderr:write("[fstar-stack][debug] cmd.exec: " .. wrapped .. "\n")
+	end
+	local ok, out = pcall(cmd.exec, wrapped, opts)
 	if ok then
 		return true, nil
 	end
@@ -113,7 +117,11 @@ end
 -- Run a command and return its stdout (or nil on failure).
 function M.read_stdout(command, opts)
 	opts = opts or {}
-	local ok, out = pcall(cmd.exec, wrap_windows_command(command), opts)
+	local wrapped = wrap_windows_command(command)
+	if os.getenv("MISE_FSTAR_STACK_DEBUG") == "1" then
+		io.stderr:write("[fstar-stack][debug] cmd.exec: " .. wrapped .. "\n")
+	end
+	local ok, out = pcall(cmd.exec, wrapped, opts)
 	if not ok then
 		return nil
 	end
