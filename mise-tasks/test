@@ -18,6 +18,7 @@ if [[ -z "${VERSION:-}" ]]; then
 fi
 
 echo "=== Linking plugin for testing ==="
+echo "PATH=$PATH | MISE_EXE=${MISE_EXE:-} | mise=$(command -v mise || echo missing)"
 "${MISE_CMD[@]}" plugin link --force fstar-stack "$PLUGIN_DIR"
 
 echo ""

@@ -92,6 +92,7 @@ M.PREREQUISITES = {
 		-- On Windows, accept either /usr/bin/time (MSYS2/Cygwin) or the shell keyword `time`.
 		command = "gtime --version || /usr/bin/time -v true || /usr/bin/time true || time true",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
+		windows_check = "gtime --version || time.exe --version || /usr/bin/time -v true || /usr/bin/time true",
 		hint = {
 			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
 			darwin = "brew install gnu-time  # provides gtime",
@@ -132,6 +133,8 @@ function M.check_prerequisite(prereq, os_type)
 	local check_cmd = prereq.command
 	if os_type == "darwin" and prereq.darwin_check then
 		check_cmd = prereq.darwin_check
+	elseif os_type == "windows" and prereq.windows_check then
+		check_cmd = prereq.windows_check
 	end
 
 	local ok, err = shell.run_command(check_cmd, prereq.name .. " check")

@@ -125,6 +125,29 @@ jobs:
             mingw-w64-x86_64-gmp \
             mingw-w64-x86_64-libffi
 
+      - name: Install OPAM (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          winget --version
+          winget install --id OCaml.opam --exact --accept-source-agreements --accept-package-agreements
+
+          # Refresh PATH from registry (winget updates User/Machine PATH, but this process doesn't automatically reload it).
+          $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+          $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+          $env:Path = "$machinePath;$userPath"
+
+          $opam = Get-Command opam -ErrorAction SilentlyContinue
+          if (-not $opam) {
+            Write-Error "opam not found on PATH after winget install"
+            exit 1
+          }
+
+          $opamDir = Split-Path -Parent $opam.Path
+          "OPAM found at: $($opam.Path)"
+          Add-Content -Path $env:GITHUB_PATH -Value $opamDir
+          "OPAM_WIN_DIR=$opamDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Preflight (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
@@ -172,29 +195,6 @@ jobs:
           cmd.exe /c "where bash" || true
           cmd.exe /c "where pkg-config" || true
           cmd.exe /c "where pkgconf" || true
-
-      - name: Install OPAM (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          winget --version
-          winget install --id OCaml.opam --exact --accept-source-agreements --accept-package-agreements
-
-          # Refresh PATH from registry (winget updates User/Machine PATH, but this process doesn't automatically reload it).
-          $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-          $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
-          $env:Path = "$machinePath;$userPath"
-
-          $opam = Get-Command opam -ErrorAction SilentlyContinue
-          if (-not $opam) {
-            Write-Error "opam not found on PATH after winget install"
-            exit 1
-          }
-
-          $opamDir = Split-Path -Parent $opam.Path
-          "OPAM found at: $($opam.Path)"
-          Add-Content -Path $env:GITHUB_PATH -Value $opamDir
-          "OPAM_WIN_DIR=$opamDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Run lint (Linux/macOS)
         if: runner.os != 'Windows'
