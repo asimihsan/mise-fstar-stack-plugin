@@ -19,6 +19,19 @@ local function opam_env(opam_root)
 	return "OPAMROOT=" .. quote(opam_root) .. " OPAMYES=1 OPAMCOLOR=never "
 end
 
+local function get_opam_root(base_path, os_type, version)
+	if os_type ~= "windows" then
+		return file.join_path(base_path, "opam")
+	end
+
+	local override = os.getenv("MISE_FSTAR_STACK_OPAM_ROOT")
+	if override and override ~= "" then
+		return override
+	end
+
+	return "C:\\opam\\fstar-stack\\" .. tostring(version)
+end
+
 -- Download a file using curl
 local function download_file(url, dest_path, description)
 	local cmd = "curl -fsSL " .. quote(url) .. " -o " .. quote(dest_path)
@@ -153,7 +166,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local make_cmd = prerequisites.get_make_command(os_type)
 
 		-- Paths
-		local opam_root = file.join_path(path, "opam")
+		local opam_root = get_opam_root(path, os_type, version)
 		local opam_prefix = opam_env(opam_root)
 		local deps_env = prerequisites.get_build_env(os_type)
 
@@ -515,7 +528,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local make_cmd = prerequisites.get_make_command(os_type)
 
 	-- Paths for KaRaMeL build
-	local opam_root = file.join_path(path, "opam")
+	local opam_root = get_opam_root(path, os_type, version)
 	local karamel_dir = file.join_path(path, "karamel")
 	local krml_exe = file.join_path(karamel_dir, "_build", "default", "src", "Karamel.exe")
 
