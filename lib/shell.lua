@@ -31,7 +31,10 @@ local function wrap_windows_command(command)
 		return command
 	end
 	local env_path = os.getenv("PATH") or ""
-	local injected = "export PATH=" .. M.quote(env_path) .. "; " .. command
+	local function escape_double_quotes(value)
+		return tostring(value):gsub("\\", "\\\\"):gsub('"', '\\"')
+	end
+	local injected = 'export PATH="' .. escape_double_quotes(env_path) .. '"; ' .. command
 	return shell_args .. " " .. M.quote(injected)
 end
 
