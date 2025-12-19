@@ -63,18 +63,38 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          update: true
-          install: >-
-            git
-            diffutils
-            patch
-            rsync
-            time
-            unzip
-            mingw-w64-x86_64-toolchain
-            mingw-w64-x86_64-make
-            mingw-w64-x86_64-pkgconf
-            mingw-w64-x86_64-gmp
+          update: false
+
+      - name: Configure MSYS2 mirrors and install packages
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        env:
+          MSYS2_PATH_TYPE: inherit
+        run: |
+          set -euxo pipefail
+
+          cat > /etc/pacman.d/mirrorlist.mingw <<'EOF'
+          Server = https://repo.msys2.org/mingw/$arch/
+          EOF
+
+          cat > /etc/pacman.d/mirrorlist.msys <<'EOF'
+          Server = https://repo.msys2.org/msys/$arch/
+          EOF
+
+          pacman --noconfirm -Syuu --overwrite "*" || true
+          pacman --noconfirm -Syuu --overwrite "*"
+
+          pacman --noconfirm -S --needed --overwrite "*" \
+            git \
+            diffutils \
+            patch \
+            rsync \
+            time \
+            unzip \
+            mingw-w64-x86_64-toolchain \
+            mingw-w64-x86_64-make \
+            mingw-w64-x86_64-pkgconf \
+            mingw-w64-x86_64-gmp \
             mingw-w64-x86_64-libffi
 
       - name: Preflight (Windows)
