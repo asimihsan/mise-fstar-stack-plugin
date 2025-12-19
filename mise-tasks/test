@@ -6,6 +6,7 @@ set -euo pipefail
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(dirname "$SCRIPT_DIR")"
+MISE_CMD=("${MISE_EXE:-mise}")
 
 default_version="$(awk -F'\"' '/^M[.]LATEST_STACK =/ {print $2; exit}' "$PLUGIN_DIR/lib/versions.lua")"
 VERSION="${FSTAR_STACK_TEST_VERSION:-$default_version}"
@@ -17,20 +18,20 @@ if [[ -z "${VERSION:-}" ]]; then
 fi
 
 echo "=== Linking plugin for testing ==="
-mise plugin link --force fstar-stack "$PLUGIN_DIR"
+"${MISE_CMD[@]}" plugin link --force fstar-stack "$PLUGIN_DIR"
 
 echo ""
 echo "=== Installing fstar-stack@${VERSION} (includes KaRaMeL by default) ==="
 # Reinstall to test the plugin (--force to reinstall if already installed)
-mise install "fstar-stack@${VERSION}" --force
+"${MISE_CMD[@]}" install "fstar-stack@${VERSION}" --force
 
 echo ""
-FSTAR_STACK_TEST_VERSION="$VERSION" mise run verify
+FSTAR_STACK_TEST_VERSION="$VERSION" bash "$SCRIPT_DIR/verify"
 
 echo ""
 echo "=== Test 5: KaRaMeL required by default ==="
-mise exec "fstar-stack@${VERSION}" -- Karamel.exe -version
-krml_home="$(mise exec "fstar-stack@${VERSION}" -- printenv KRML_HOME 2>/dev/null || true)"
+"${MISE_CMD[@]}" exec "fstar-stack@${VERSION}" -- Karamel.exe -version
+krml_home="$("${MISE_CMD[@]}" exec "fstar-stack@${VERSION}" -- printenv KRML_HOME 2>/dev/null || true)"
 if [[ -n "${krml_home:-}" ]]; then
     echo "✓ KRML_HOME is set: $krml_home"
 else

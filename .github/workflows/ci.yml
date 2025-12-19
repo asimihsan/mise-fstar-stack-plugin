@@ -115,6 +115,7 @@ jobs:
             git \
             diffutils \
             patch \
+            make \
             rsync \
             time \
             unzip \
@@ -138,6 +139,7 @@ jobs:
           if [ -n "${MISE_WIN_DIR:-}" ]; then
             MISE_WIN_DIR_POSIX="$(cygpath -u "$MISE_WIN_DIR")"
             export PATH="$MISE_WIN_DIR_POSIX/shims:$MISE_WIN_DIR_POSIX/bin:$PATH"
+            export MISE_EXE="$MISE_WIN_DIR_POSIX/bin/mise.exe"
           fi
 
           if [ -n "${OPAM_WIN_DIR:-}" ]; then
@@ -220,8 +222,9 @@ jobs:
           if [ -n "${MISE_WIN_DIR:-}" ]; then
             MISE_WIN_DIR_POSIX="$(cygpath -u "$MISE_WIN_DIR")"
             export PATH="$MISE_WIN_DIR_POSIX/shims:$MISE_WIN_DIR_POSIX/bin:$PATH"
+            export MISE_EXE="$MISE_WIN_DIR_POSIX/bin/mise.exe"
           fi
           if [ -n "${OPAM_WIN_DIR:-}" ]; then
             export PATH="$(cygpath -u "$OPAM_WIN_DIR"):$PATH"
           fi
-          mise run test
+          bash mise-tasks/test
