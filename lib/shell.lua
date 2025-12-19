@@ -14,6 +14,25 @@ local function trim_end(value)
 	return (tostring(value or ""):gsub("%s+$", ""))
 end
 
+local function windows_inline_shell_args()
+	if not is_windows() then
+		return nil
+	end
+	local args = os.getenv("MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS")
+	if args == nil or args == "" then
+		return nil
+	end
+	return args
+end
+
+local function wrap_windows_command(command)
+	local shell_args = windows_inline_shell_args()
+	if not shell_args then
+		return command
+	end
+	return shell_args .. " " .. M.quote(command)
+end
+
 -- Shell-escape a string for safe use in shell commands.
 function M.quote(value)
 	return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
@@ -38,7 +57,8 @@ function M.command_exists(cmd_name)
 	if not cmd_name or cmd_name == "" then
 		return false
 	end
-	local ok = pcall(cmd.exec, "command -v " .. M.quote(cmd_name))
+	local probe = "command -v " .. M.quote(cmd_name)
+	local ok = pcall(cmd.exec, wrap_windows_command(probe))
 	return ok == true
 end
 
@@ -46,7 +66,7 @@ end
 -- Returns: ok (boolean), err (string|nil)
 function M.run_command(command, description, opts)
 	opts = opts or {}
-	local ok, out = pcall(cmd.exec, command, opts)
+	local ok, out = pcall(cmd.exec, wrap_windows_command(command), opts)
 	if ok then
 		return true, nil
 	end
@@ -65,7 +85,7 @@ end
 -- Run a command and return its stdout (or nil on failure).
 function M.read_stdout(command, opts)
 	opts = opts or {}
-	local ok, out = pcall(cmd.exec, command, opts)
+	local ok, out = pcall(cmd.exec, wrap_windows_command(command), opts)
 	if not ok then
 		return nil
 	end
