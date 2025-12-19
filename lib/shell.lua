@@ -30,7 +30,9 @@ local function wrap_windows_command(command)
 	if not shell_args then
 		return command
 	end
-	return shell_args .. " " .. M.quote(command)
+	local env_path = os.getenv("PATH") or ""
+	local injected = "export PATH=" .. M.quote(env_path) .. "; " .. command
+	return shell_args .. " " .. M.quote(injected)
 end
 
 -- Shell-escape a string for safe use in shell commands.

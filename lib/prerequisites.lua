@@ -41,6 +41,7 @@ M.PREREQUISITES = {
 		-- On Linux, make is typically GNU make
 		command = "gmake --version || make --version",
 		darwin_check = "gmake --version", -- macOS requires gmake specifically
+		windows_check = "make --version",
 		hint = {
 			windows = "Install GNU make via MSYS2/Cygwin (e.g., pacman -S make)",
 			darwin = "brew install make  # provides gmake (GNU make required)",
@@ -52,6 +53,7 @@ M.PREREQUISITES = {
 		-- On Windows/MSYS2 the binary is often pkgconf (with pkg-config as an alias),
 		-- so accept either.
 		command = "pkg-config --version || pkgconf --version",
+		windows_check = "pkg-config --version",
 		hint = {
 			windows = "Install pkg-config via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-pkgconf)",
 			darwin = "brew install pkg-config",
@@ -61,6 +63,7 @@ M.PREREQUISITES = {
 	{
 		name = "gmp",
 		command = "(pkg-config --exists gmp || pkgconf --exists gmp) && echo gmp found",
+		windows_check = "pkg-config --exists gmp",
 		hint = {
 			windows = "Install gmp via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-gmp)",
 			darwin = "brew install gmp",
@@ -70,6 +73,7 @@ M.PREREQUISITES = {
 	{
 		name = "libffi",
 		command = "(pkg-config --exists libffi || pkgconf --exists libffi) && echo libffi found",
+		windows_check = "pkg-config --exists libffi",
 		hint = {
 			windows = "Install libffi via MSYS2/Cygwin (e.g., pacman -S mingw-w64-x86_64-libffi)",
 			darwin = "brew install libffi",
@@ -79,6 +83,7 @@ M.PREREQUISITES = {
 	{
 		name = "C compiler",
 		command = "cc --version || gcc --version || clang --version",
+		windows_check = "gcc --version",
 		hint = {
 			windows = "Install a MinGW toolchain via MSYS2/Cygwin (gcc) or Visual Studio (cl)",
 			darwin = "xcode-select --install",
@@ -92,7 +97,7 @@ M.PREREQUISITES = {
 		-- On Windows, accept either /usr/bin/time (MSYS2/Cygwin) or the shell keyword `time`.
 		command = "gtime --version || /usr/bin/time -v true || /usr/bin/time true || time true",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
-		windows_check = "gtime --version || time.exe --version || /usr/bin/time -v true || /usr/bin/time true",
+		windows_check = "/usr/bin/time -v true",
 		hint = {
 			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
 			darwin = "brew install gnu-time  # provides gtime",
