@@ -18,12 +18,18 @@ FAIL_CONCLUSIONS = {
 }
 
 
-def run_cmd(cmd, capture=True, check=True):
-    if capture:
-        result = subprocess.run(cmd, check=check, text=True, stdout=subprocess.PIPE)
-        return result.stdout.strip()
-    subprocess.run(cmd, check=check)
-    return ""
+def run_cmd(cmd, capture=True, check=True, retries=3, retry_delay=5):
+    for attempt in range(1, retries + 1):
+        try:
+            if capture:
+                result = subprocess.run(cmd, check=check, text=True, stdout=subprocess.PIPE)
+                return result.stdout.strip()
+            subprocess.run(cmd, check=check)
+            return ""
+        except subprocess.CalledProcessError as exc:
+            if attempt >= retries:
+                raise
+            time.sleep(retry_delay * attempt)
 
 
 def iso_now_utc():
