@@ -141,6 +141,13 @@ function M.check_prerequisite(prereq, os_type)
 	elseif os_type == "windows" and prereq.windows_check then
 		check_cmd = prereq.windows_check
 	end
+	if os_type == "windows" and prereq.name == "gtime" then
+		local msys_root = os.getenv("MSYS2_ROOT_WIN")
+		if msys_root and msys_root ~= "" then
+			msys_root = msys_root:gsub("\\", "/"):gsub("/+$", "")
+			check_cmd = msys_root .. "/usr/bin/time.exe --version"
+		end
+	end
 
 	local ok, err = shell.run_command(check_cmd, prereq.name .. " check")
 	if ok then

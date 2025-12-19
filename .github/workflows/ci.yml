@@ -84,6 +84,7 @@ jobs:
           MSYS2_ROOT_WIN="$(cygpath -w / | tr '\\' '/')"
           echo "MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS=${MSYS2_ROOT_WIN}/usr/bin/bash.exe -lc" >> "$GITHUB_ENV"
           echo "MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS=${MSYS2_ROOT_WIN}/usr/bin/bash.exe --norc -eo pipefail -o igncr" >> "$GITHUB_ENV"
+          echo "MSYS2_ROOT_WIN=${MSYS2_ROOT_WIN}" >> "$GITHUB_ENV"
 
       - name: Configure MSYS2 mirrors and install packages
         if: runner.os == 'Windows'
