@@ -31,7 +31,7 @@ end
 
 local function quote_windows_arg(value)
 	local v = tostring(value)
-	if v:find("[%s\"]") then
+	if v:find('[%s"]') then
 		v = '"' .. v:gsub('"', '\\"') .. '"'
 	end
 	return v
