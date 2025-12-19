@@ -37,7 +37,7 @@ local function normalize_windows_path_list(path_value)
 	end
 	local parts = {}
 	for part in path_value:gmatch("[^;]+") do
-		local p = part:gsub("\\", "/")
+		local p = part:gsub('"', ""):gsub("\\", "/")
 		local drive, rest = p:match("^([A-Za-z]):/(.*)")
 		if drive then
 			p = "/" .. drive:lower() .. "/" .. rest
