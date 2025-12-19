@@ -76,6 +76,15 @@ jobs:
           msystem: MINGW64
           update: false
 
+      - name: Export MSYS2 shell for mise (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          MSYS2_ROOT_WIN="$(cygpath -w / | tr '\\' '/')"
+          echo "MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS=${MSYS2_ROOT_WIN}/usr/bin/bash.exe -lc" >> "$GITHUB_ENV"
+          echo "MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS=${MSYS2_ROOT_WIN}/usr/bin/bash.exe --norc -eo pipefail -o igncr" >> "$GITHUB_ENV"
+
       - name: Configure MSYS2 mirrors and install packages
         if: runner.os == 'Windows'
         shell: msys2 {0}
@@ -152,8 +161,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         env:
-          MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: 'C:/msys64/usr/bin/bash.exe -lc'
-          MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS: 'C:/msys64/usr/bin/bash.exe --norc -eo pipefail -o igncr'
           MISE_USE_FILE_SHELL_FOR_EXECUTABLE_TASKS: "true"
           PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
         run: |
@@ -212,8 +219,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: msys2 {0}
         env:
-          MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS: 'C:/msys64/usr/bin/bash.exe -lc'
-          MISE_WINDOWS_DEFAULT_FILE_SHELL_ARGS: 'C:/msys64/usr/bin/bash.exe --norc -eo pipefail -o igncr'
           MISE_USE_FILE_SHELL_FOR_EXECUTABLE_TASKS: "true"
           PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
