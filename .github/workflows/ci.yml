@@ -157,8 +157,7 @@ jobs:
           MISE_USE_FILE_SHELL_FOR_EXECUTABLE_TASKS: "true"
           PKG_CONFIG_PATH: "/mingw64/lib/pkgconfig:/mingw64/share/pkgconfig"
           MSYS2_PATH_TYPE: inherit
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euxo pipefail
           mise run test
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
