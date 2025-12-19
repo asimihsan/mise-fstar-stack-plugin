@@ -11,16 +11,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  full:
+  unix:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
+        with:
+          install: false
 
       - name: Trust mise config
         run: mise trust --yes
@@ -53,6 +58,72 @@ jobs:
             make \
             opam \
             pkg-config
+
+      - run: mise run test
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      MSYSTEM: MINGW64
+      CHERE_INVOKING: 1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+        with:
+          install: false
+
+      - name: Trust mise config
+        run: mise trust --yes
+
+      - name: Install system prerequisites (Windows)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            make
+            rsync
+            time
+            unzip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-gmp
+            mingw-w64-x86_64-libffi
+
+      - name: Add MSYS2 to PATH (Windows)
+        shell: pwsh
+        run: |
+          # Ensure mise's Lua hooks (which run via cmd.exe) can find bash/make/pkg-config/gcc/time, etc.
+          # Use GITHUB_ENV so it applies to both bash and cmd.exe subprocesses.
+          $prepend = "C:\\msys64\\usr\\bin;C:\\msys64\\mingw64\\bin"
+          "PATH=$prepend;$env:Path" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install OPAM (Windows)
+        shell: pwsh
+        run: |
+          winget --version
+          winget install --id OCaml.opam --exact --accept-source-agreements --accept-package-agreements
+
+          # Refresh PATH from registry (winget updates User/Machine PATH, but this process doesn't automatically reload it).
+          $machinePath = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+          $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+          $env:Path = "$machinePath;$userPath"
+
+          $opam = Get-Command opam -ErrorAction SilentlyContinue
+          if (-not $opam) {
+            Write-Error "opam not found on PATH after winget install"
+            exit 1
+          }
+
+          $opamDir = Split-Path -Parent $opam.Path
+          "OPAM found at: $($opam.Path)"
+          Add-Content -Path $env:GITHUB_PATH -Value $opamDir
 
       - run: mise run test
         env:

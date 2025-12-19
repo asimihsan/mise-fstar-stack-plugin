@@ -31,6 +31,7 @@ M.STACK_VERSIONS = {
 				["darwin_amd64"] = nil, -- Not available, use source build
 				["linux_amd64"] = "d175809ba0fbdacad871fa7ba049d966d1c12aee0c52b7c0c35d30a5a649ffd8",
 				["linux_arm64"] = nil, -- Not available, use source build
+				["windows_amd64"] = "27eb9e8fa14ed408dded842366d3f489eaa645f6d1953b180500ac88afdacb0a",
 			},
 		},
 		-- Z3 configuration for source build platforms (bundled with F* binary on other platforms)
@@ -93,6 +94,7 @@ M.STACK_VERSIONS = {
 				["darwin_amd64"] = nil, -- Not available, use source build
 				["linux_amd64"] = "940c187d7a6dc3e95d17fd5159b5eaec17d62981c7f135a7e6c531ce3b59442d",
 				["linux_arm64"] = nil, -- Not available, use source build
+				["windows_amd64"] = "8c77bbef29cc8b760c310e234891121f4873fa40cac40b8928d6b5889f3a0745",
 			},
 		},
 		-- Z3 configuration for source build platforms (bundled with F* binary on other platforms)

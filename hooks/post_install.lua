@@ -12,6 +12,7 @@ local shell = require("lib.shell")
 local quote = shell.quote
 local exec_succeeded = shell.exec_succeeded
 local run_command = shell.run_command
+local to_mixed_path = shell.to_mixed_path
 
 -- Build environment string for opam commands
 local function opam_env(opam_root)
@@ -96,14 +97,6 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		error("PostInstall context missing sdk_info.version")
 	end
 	local os_type = RUNTIME.osType -- luacheck: ignore
-
-	if os_type == "windows" then
-		error(
-			"Windows is not yet supported.\n"
-				.. "The plugin uses Unix shell commands (chmod, xattr).\n"
-				.. "Please install F* manually from: https://github.com/FStarLang/FStar/releases"
-		)
-	end
 
 	-- Check if this platform requires building F* from source
 	local platform_key = platform.platform_key()
@@ -427,8 +420,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Set executable permissions
-	os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
-	os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+	if os_type ~= "windows" then
+		os.execute("chmod +x " .. quote(bin_dir) .. "/* 2>/dev/null")
+		os.execute("chmod +x " .. quote(path) .. "/lib/fstar/z3-*/bin/* 2>/dev/null")
+	end
 
 	-- Step 3: Verify F* installation
 	print("Step 3/5: Verifying F* installation...")
@@ -440,7 +435,13 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		error("F* installation incomplete: bin/fstar.exe not found. Expected at: " .. fstar_exe)
 	end
 
-	local test_result = os.execute(quote(fstar_exe) .. " --version > /dev/null 2>&1")
+	local test_cmd
+	if os_type == "windows" then
+		test_cmd = '"' .. fstar_exe .. '" --version > NUL 2>&1'
+	else
+		test_cmd = quote(fstar_exe) .. " --version > /dev/null 2>&1"
+	end
+	local test_result = os.execute(test_cmd)
 	if not exec_succeeded(test_result) then
 		error("F* binary verification failed")
 	end
@@ -489,8 +490,23 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local karamel_dir = file.join_path(path, "karamel")
 	local krml_exe = file.join_path(karamel_dir, "_build", "default", "src", "Karamel.exe")
 
+	-- On Windows, we run build commands under bash (via lib/shell.lua), which
+	-- expects forward slashes in paths (C:/...).
+	local shell_path = path
+	local shell_opam_root = opam_root
+	local shell_karamel_dir = karamel_dir
+	local shell_fstar_exe = fstar_exe
+	local shell_krml_exe = krml_exe
+	if os_type == "windows" then
+		shell_path = to_mixed_path(path)
+		shell_opam_root = to_mixed_path(opam_root)
+		shell_karamel_dir = to_mixed_path(karamel_dir)
+		shell_fstar_exe = to_mixed_path(fstar_exe)
+		shell_krml_exe = to_mixed_path(krml_exe)
+	end
+
 	-- Environment for opam commands
-	local opam_prefix = opam_env(opam_root)
+	local opam_prefix = opam_env(shell_opam_root)
 	local deps_env = prerequisites.get_build_env(os_type)
 
 	-- Get architecture-specific compiler flags for macOS
@@ -542,21 +558,24 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	local karamel_commit = karamel_config.commit
 	local karamel_repo = karamel_config.repository
 
-	ok, err =
-		run_command("git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir), "git clone karamel")
+	ok, err = run_command(
+		"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(shell_karamel_dir),
+		"git clone karamel"
+	)
 	if not ok then
 		error(err)
 	end
 
 	-- Checkout pinned commit
-	ok, err = run_command("cd " .. quote(karamel_dir) .. " && git checkout " .. karamel_commit, "git checkout commit")
+	ok, err =
+		run_command("cd " .. quote(shell_karamel_dir) .. " && git checkout " .. karamel_commit, "git checkout commit")
 	if not ok then
 		error(err)
 	end
 
 	-- Update submodules for the checked-out commit
 	ok, err = run_command(
-		"cd " .. quote(karamel_dir) .. " && git submodule update --init --recursive",
+		"cd " .. quote(shell_karamel_dir) .. " && git submodule update --init --recursive",
 		"git submodule update"
 	)
 	if not ok then
@@ -564,16 +583,8 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	end
 
 	-- Verify we're at the right commit
-	local verify_file = os.tmpname()
-	os.execute("cd " .. quote(karamel_dir) .. " && git rev-parse HEAD > " .. quote(verify_file) .. " 2>&1")
-	local vf = io.open(verify_file, "r")
-	local actual_commit = ""
-	if vf then
-		actual_commit = (vf:read("*l") or ""):gsub("%s+", "")
-		vf:close()
-	end
-	os.remove(verify_file)
-
+	local actual_commit = (shell.read_stdout("cd " .. quote(shell_karamel_dir) .. " && git rev-parse HEAD") or "")
+	actual_commit = actual_commit:gsub("%s+", "")
 	if actual_commit ~= karamel_commit then
 		error(
 			"KaRaMeL commit verification failed.\n"
@@ -593,15 +604,28 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		.. deps_env
 		.. opam_prefix
 		.. "FSTAR_EXE="
-		.. quote(fstar_exe)
+		.. quote(shell_fstar_exe)
 		.. " "
 		.. "FSTAR_HOME="
-		.. quote(path)
+		.. quote(shell_path)
 		.. " "
+
+	-- On Windows, KaRaMeL/krmllib need to be built with the MinGW toolchain
+	-- (not Cygwin's GCC). Everest sets CC for build steps only, and avoids
+	-- setting it during `opam install` to prevent unrelated package failures.
+	if os_type == "windows" then
+		if shell.command_exists("x86_64-w64-mingw32-gcc.exe") then
+			build_env = build_env .. "CC=x86_64-w64-mingw32-gcc.exe "
+		elseif shell.command_exists("x86_64-w64-mingw32-gcc") then
+			build_env = build_env .. "CC=x86_64-w64-mingw32-gcc "
+		elseif shell.command_exists("gcc") then
+			build_env = build_env .. "CC=gcc "
+		end
+	end
 
 	ok, err = run_command(
 		"cd "
-			.. quote(karamel_dir)
+			.. quote(shell_karamel_dir)
 			.. " && "
 			.. build_env
 			.. "opam exec --switch=default -- "
@@ -616,7 +640,7 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 6: Build krmllib
 	ok, err = run_command(
 		"cd "
-			.. quote(karamel_dir)
+			.. quote(shell_karamel_dir)
 			.. " && "
 			.. build_env
 			.. "opam exec --switch=default -- "
@@ -665,20 +689,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 
 	-- Test krml works (need opam environment for OCaml libs)
 	-- Note: KaRaMeL uses single-dash flags (-version, not --version)
-	local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(krml_exe) .. " -version"
-	local test_output_file = os.tmpname()
-	local krml_test = os.execute(krml_test_cmd .. " > " .. quote(test_output_file) .. " 2>&1")
-	if not exec_succeeded(krml_test) then
-		-- Read output for error message
-		local tf = io.open(test_output_file, "r")
-		local test_output = ""
-		if tf then
-			test_output = tf:read("*a") or ""
-			tf:close()
-		end
-		os.remove(test_output_file)
-		error("KaRaMeL binary verification failed:\n" .. test_output)
+	local krml_test_cmd = opam_prefix .. "opam exec --switch=default -- " .. quote(shell_krml_exe) .. " -version"
+	ok, err = run_command(krml_test_cmd, "karamel -version")
+	if not ok then
+		error(err)
 	end
-	os.remove(test_output_file)
 	print("=== fstar-stack installation complete ===")
 end
