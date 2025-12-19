@@ -158,6 +158,14 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $opamDir
           "OPAM_WIN_DIR=$opamDir" | Out-File -FilePath $env:GITHUB_ENV -Append
 
+      - name: Set OPAM root (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $opamRoot = Join-Path $env:RUNNER_TEMP "opam-fstar-stack"
+          New-Item -ItemType Directory -Force -Path $opamRoot | Out-Null
+          "MISE_FSTAR_STACK_OPAM_ROOT=$opamRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
       - name: Preflight (Windows)
         if: runner.os == 'Windows'
         shell: msys2 {0}
