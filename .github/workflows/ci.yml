@@ -68,23 +68,39 @@ jobs:
       - name: Configure MSYS2 mirrors and install packages
         if: runner.os == 'Windows'
         shell: msys2 {0}
-        env:
-          MSYS2_PATH_TYPE: inherit
         run: |
           set -euxo pipefail
 
           cat > /etc/pacman.d/mirrorlist.mingw <<'EOF'
-          Server = https://repo.msys2.org/mingw/$arch/
+          Server = https://mirror.msys2.org/mingw/$repo/
+          Server = https://repo.msys2.org/mingw/$repo/
           EOF
 
           cat > /etc/pacman.d/mirrorlist.msys <<'EOF'
+          Server = https://mirror.msys2.org/msys/$arch/
           Server = https://repo.msys2.org/msys/$arch/
           EOF
 
-          pacman --noconfirm -Syuu --overwrite "*" || true
-          pacman --noconfirm -Syuu --overwrite "*"
+          retry() {
+            local attempt=1
+            local max=3
+            while true; do
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -ge "$max" ]; then
+                return 1
+              fi
+              echo "pacman failed, retrying ($attempt/$max)..."
+              sleep $((10 * attempt))
+              attempt=$((attempt + 1))
+            done
+          }
 
-          pacman --noconfirm -S --needed --overwrite "*" \
+          retry pacman --noconfirm -Syuu --overwrite "*"
+          retry pacman --noconfirm -Syuu --overwrite "*"
+
+          retry pacman --noconfirm -S --needed --overwrite "*" \
             git \
             diffutils \
             patch \
