@@ -18,6 +18,51 @@ local function wrap_windows_command(command)
 	return command
 end
 
+local function windows_bash_path()
+	if not is_windows() then
+		return nil
+	end
+	local args = os.getenv("MISE_WINDOWS_DEFAULT_INLINE_SHELL_ARGS")
+	if not args or args == "" then
+		return nil
+	end
+	return args:match("^%S+")
+end
+
+local function quote_windows_arg(value)
+	local v = tostring(value)
+	if v:find("[%s\"]") then
+		v = '"' .. v:gsub('"', '\\"') .. '"'
+	end
+	return v
+end
+
+local function exec_windows_bash(command, opts)
+	local bash = windows_bash_path()
+	if not bash then
+		return pcall(cmd.exec, command, opts)
+	end
+
+	local tmp_path = os.tmpname()
+	if not tmp_path:match("%.sh$") then
+		tmp_path = tmp_path .. ".sh"
+	end
+
+	local handle = io.open(tmp_path, "w")
+	if not handle then
+		return pcall(cmd.exec, command, opts)
+	end
+	handle:write(command)
+	handle:write("\n")
+	handle:close()
+
+	local script_path = M.to_mixed_path(tmp_path)
+	local bash_cmd = bash .. " --norc -eo pipefail -o igncr " .. quote_windows_arg(script_path)
+	local ok, out = pcall(cmd.exec, bash_cmd, opts)
+	os.remove(tmp_path)
+	return ok, out
+end
+
 -- Shell-escape a string for safe use in shell commands.
 function M.quote(value)
 	return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
@@ -55,7 +100,12 @@ function M.run_command(command, description, opts)
 	if os.getenv("MISE_FSTAR_STACK_DEBUG") == "1" then
 		io.stderr:write("[fstar-stack][debug] cmd.exec: " .. wrapped .. "\n")
 	end
-	local ok, out = pcall(cmd.exec, wrapped, opts)
+	local ok, out
+	if is_windows() then
+		ok, out = exec_windows_bash(wrapped, opts)
+	else
+		ok, out = pcall(cmd.exec, wrapped, opts)
+	end
 	if ok then
 		return true, nil
 	end
@@ -78,7 +128,12 @@ function M.read_stdout(command, opts)
 	if os.getenv("MISE_FSTAR_STACK_DEBUG") == "1" then
 		io.stderr:write("[fstar-stack][debug] cmd.exec: " .. wrapped .. "\n")
 	end
-	local ok, out = pcall(cmd.exec, wrapped, opts)
+	local ok, out
+	if is_windows() then
+		ok, out = exec_windows_bash(wrapped, opts)
+	else
+		ok, out = pcall(cmd.exec, wrapped, opts)
+	end
 	if not ok then
 		return nil
 	end
