@@ -97,7 +97,7 @@ M.PREREQUISITES = {
 		-- On Windows, accept either /usr/bin/time (MSYS2/Cygwin) or the shell keyword `time`.
 		command = "gtime --version || /usr/bin/time -v true || /usr/bin/time true || time true",
 		darwin_check = "gtime --version", -- macOS requires gtime specifically
-		windows_check = "/usr/bin/time -v true",
+		windows_check = "time.exe --version",
 		hint = {
 			windows = "Install GNU time via MSYS2/Cygwin (e.g., pacman -S time)",
 			darwin = "brew install gnu-time  # provides gtime",
