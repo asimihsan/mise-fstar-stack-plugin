@@ -340,6 +340,16 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 		local karamel_commit = karamel_config.commit
 		local karamel_repo = karamel_config.repository
 
+		local env_karamel_repo = os.getenv("MISE_FSTAR_STACK_KARAMEL_REPO")
+		if env_karamel_repo and env_karamel_repo ~= "" then
+			karamel_repo = env_karamel_repo
+		end
+
+		local env_karamel_commit = os.getenv("MISE_FSTAR_STACK_KARAMEL_COMMIT")
+		if env_karamel_commit and env_karamel_commit ~= "" then
+			karamel_commit = env_karamel_commit
+		end
+
 		ok, err = run_command(
 			"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(karamel_dir),
 			"git clone karamel"
@@ -597,6 +607,16 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Step 4: Clone KaRaMeL at pinned commit
 	local karamel_commit = karamel_config.commit
 	local karamel_repo = karamel_config.repository
+
+	local env_karamel_repo = os.getenv("MISE_FSTAR_STACK_KARAMEL_REPO")
+	if env_karamel_repo and env_karamel_repo ~= "" then
+		karamel_repo = env_karamel_repo
+	end
+
+	local env_karamel_commit = os.getenv("MISE_FSTAR_STACK_KARAMEL_COMMIT")
+	if env_karamel_commit and env_karamel_commit ~= "" then
+		karamel_commit = env_karamel_commit
+	end
 
 	ok, err = run_command(
 		"git clone --recursive " .. quote(karamel_repo) .. " " .. quote(shell_karamel_dir),

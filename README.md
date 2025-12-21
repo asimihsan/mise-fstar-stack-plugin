@@ -51,6 +51,9 @@ The plugin sets:
 
 KaRaMeL is required; the stack does not support an F*-only mode.
 
+Override variables:
+- `MISE_FSTAR_STACK_KARAMEL_REPO` - Override KaRaMeL git repository
+- `MISE_FSTAR_STACK_KARAMEL_COMMIT` - Override KaRaMeL git commit/tag
 ## Development Status
 
 - [x] F* binary installation
