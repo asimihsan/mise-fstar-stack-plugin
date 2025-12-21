@@ -46,15 +46,17 @@ sudo apt-get install opam build-essential pkg-config libgmp-dev
 
 The plugin sets:
 - `FSTAR_HOME` - F* installation directory
-- `KRML_HOME` - KaRaMeL installation directory (when available)
+- `KRML_HOME` - KaRaMeL installation directory
 - `PATH` - Adds F* binary, Z3 solver, and KaRaMeL binary
+
+KaRaMeL is required; the stack does not support an F*-only mode.
 
 ## Development Status
 
 - [x] F* binary installation
-- [ ] KaRaMeL build from source
-- [ ] Full prerequisite checking
-- [ ] Multiple stack versions
+- [x] KaRaMeL build from source
+- [x] Full prerequisite checking
+- [x] Multiple stack versions
 
 ## License
 
