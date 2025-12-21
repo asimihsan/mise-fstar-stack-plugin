@@ -60,7 +60,9 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 	-- Fail if KaRaMeL is missing. This stack requires extraction support.
 	if not file.exists(krml_exe) then
 		error(
-			"KaRaMeL not found (expected " .. krml_exe .. "). "
+			"KaRaMeL not found (expected "
+				.. krml_exe
+				.. "). "
 				.. "Installation is incomplete; re-run `mise install` for this version."
 		)
 	end
