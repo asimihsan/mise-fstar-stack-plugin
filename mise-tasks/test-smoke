@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Smoke test plugin (skip KaRaMeL build)"
+#MISE description="Smoke test plugin (full install)"
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,7 +18,7 @@ echo "=== Linking plugin for testing ==="
 mise plugin link --force fstar-stack "$PLUGIN_DIR"
 
 echo ""
-echo "=== Installing fstar-stack@${VERSION} (skip KaRaMeL) ==="
-MISE_FSTAR_STACK_SKIP_KARAMEL=1 mise install "fstar-stack@${VERSION}" --force
+echo "=== Installing fstar-stack@${VERSION} ==="
+mise install "fstar-stack@${VERSION}" --force
 
 FSTAR_STACK_TEST_VERSION="$VERSION" mise run verify

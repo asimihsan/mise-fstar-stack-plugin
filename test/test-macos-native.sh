@@ -2,9 +2,10 @@
 # Test plugin on native macOS (run locally, not in Docker)
 # Verifies ARM64 architecture on Apple Silicon
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION="2025.12.15-stack.1"
 
 echo "=== Testing mise-fstar-stack-plugin on macOS ==="
 
@@ -24,13 +25,14 @@ mise uninstall fstar-stack 2>/dev/null || true
 
 echo ""
 echo "=== Installing fstar-stack ==="
-mise install fstar-stack@2025.10.06-stack.1
+mise plugin link --force fstar-stack "$SCRIPT_DIR/.."
+mise install fstar-stack@"$VERSION" --force
 
 # Verify tools work
 echo ""
 echo "=== Verifying tools ==="
-mise exec -- fstar.exe --version
-mise exec -- Karamel.exe -version
+mise exec fstar-stack@"$VERSION" -- fstar.exe --version
+mise exec fstar-stack@"$VERSION" -- Karamel.exe -version
 
 # Verify architecture
 echo ""

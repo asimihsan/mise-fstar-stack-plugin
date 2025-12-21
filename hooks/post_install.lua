@@ -491,12 +491,10 @@ function PLUGIN:PostInstall(ctx) -- luacheck: ignore
 	-- Phase 2: Build KaRaMeL from source
 	-- ========================================
 
-	-- Allow skipping KaRaMeL build via environment variable
+	-- KaRaMeL is required for this stack. Do not allow skipping.
 	local skip_karamel = os.getenv("MISE_FSTAR_STACK_SKIP_KARAMEL")
 	if skip_karamel == "1" then
-		print("Step 4/5: Skipping KaRaMeL build (MISE_FSTAR_STACK_SKIP_KARAMEL=1)")
-		print("Step 5/5: Installation complete (F* only)")
-		return -- F* only installation
+		error("MISE_FSTAR_STACK_SKIP_KARAMEL is no longer supported; KaRaMeL is required")
 	end
 
 	-- Step 4: Build KaRaMeL

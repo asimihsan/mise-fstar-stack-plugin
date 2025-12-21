@@ -32,7 +32,7 @@ description = "Run plugin tests - install and execute tool"
 run = "bash mise-tasks/test"
 
 [tasks.test-smoke]
-description = "Smoke test plugin (skip KaRaMeL build)"
+description = "Smoke test plugin (full install)"
 run = "bash mise-tasks/test-smoke"
 
 [tasks.verify]

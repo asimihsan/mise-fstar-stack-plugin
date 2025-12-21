@@ -52,28 +52,33 @@ function PLUGIN:EnvKeys(ctx) -- luacheck: ignore
 		value = z3_bin,
 	})
 
-	-- KaRaMeL paths (only if build completed successfully)
+	-- KaRaMeL paths (required; fail fast if missing)
 	local karamel_path = file.join_path(main_path, "karamel")
 	local opam_root = file.join_path(main_path, "opam")
 	local krml_exe = file.join_path(karamel_path, "_build", "default", "src", "Karamel.exe")
 
-	-- Gate on binary existing, not just directory (in case build failed midway)
-	if file.exists(krml_exe) then
-		table.insert(env_vars, {
-			key = "KRML_HOME",
-			value = karamel_path,
-		})
-		-- KaRaMeL binary is in _build/default/src/
-		table.insert(env_vars, {
-			key = "PATH",
-			value = file.join_path(karamel_path, "_build", "default", "src"),
-		})
-		-- krmllib headers and C files
-		table.insert(env_vars, {
-			key = "KRML_INCLUDE",
-			value = file.join_path(karamel_path, "krmllib", "dist", "minimal"),
-		})
+	-- Fail if KaRaMeL is missing. This stack requires extraction support.
+	if not file.exists(krml_exe) then
+		error(
+			"KaRaMeL not found (expected " .. krml_exe .. "). "
+				.. "Installation is incomplete; re-run `mise install` for this version."
+		)
 	end
+
+	table.insert(env_vars, {
+		key = "KRML_HOME",
+		value = karamel_path,
+	})
+	-- KaRaMeL binary is in _build/default/src/
+	table.insert(env_vars, {
+		key = "PATH",
+		value = file.join_path(karamel_path, "_build", "default", "src"),
+	})
+	-- krmllib headers and C files
+	table.insert(env_vars, {
+		key = "KRML_INCLUDE",
+		value = file.join_path(karamel_path, "krmllib", "dist", "minimal"),
+	})
 
 	-- Set up opam root for KaRaMeL's OCaml dependencies
 	if file.exists(opam_root) then
