@@ -49,6 +49,10 @@ The plugin sets:
 - `KRML_HOME` - KaRaMeL installation directory (when available)
 - `PATH` - Adds F* binary, Z3 solver, and KaRaMeL binary
 
+Override variables:
+- `MISE_FSTAR_STACK_KARAMEL_REPO` - Override KaRaMeL git repository
+- `MISE_FSTAR_STACK_KARAMEL_COMMIT` - Override KaRaMeL git commit/tag
+
 ## Development Status
 
 - [x] F* binary installation
